@@ -1,7 +1,52 @@
 <?php
 
+use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\InventoryMovementController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ScanController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WarehouseController;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+Route::redirect('/', '/dashboard');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login')->name('login.store');
+});
+
+Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/password', [PasswordController::class, 'edit'])->name('password.edit');
+    Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
+    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    Route::middleware('password.changed')->group(function () {
+        Route::get('/dashboard', function () {
+            return view('dashboard', [
+                'stockAgotado' => DB::table('existencias')->where('activo', true)->where('cantidad', 0)->count(),
+                'activosReparacion' => DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'en_reparacion')->count(),
+                'solicitudesPendientes' => DB::table('solicitudes_baja_activo')->where('estado', 'pendiente')->count(),
+                'movimientosRecientes' => DB::table('movimientos_inventario')->where('estado', 'publicado')->orderByDesc('publicado_at')->limit(5)->get(),
+            ]);
+        })->name('dashboard');
+        Route::resource('users', UserController::class)->except('show', 'destroy');
+        Route::put('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        Route::post('notifications/{notificationId}/attend', [NotificationController::class, 'attend'])->name('notifications.attend');
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        Route::post('audit-logs/generate', [AuditLogController::class, 'generate'])->name('audit-logs.generate');
+        Route::get('scan', [ScanController::class, 'index'])->name('scan.index');
+        Route::post('scan', [ScanController::class, 'search'])->name('scan.search');
+        Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
+        Route::resource('products', ProductController::class);
+        Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
+        Route::resource('assets', AssetController::class)->except('destroy');
+        Route::post('assets/{asset}/status', [AssetController::class, 'changeStatus'])->name('assets.status');
+    });
 });

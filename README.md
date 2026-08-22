@@ -65,3 +65,18 @@ Para reiniciar desde cero en desarrollo se deben detener los servicios y elimina
 | `backup` | Genera un dump local verificado diario en `storage/backups`. |
 
 Los valores de `.env.example` son exclusivos para desarrollo. Producción requiere secretos propios, HTTPS configurado en el proxy, correo institucional y un destino externo cifrado y verificado para respaldos.
+
+## Restauración verificada (entorno vacío)
+
+La restauración se realiza únicamente con servicios detenidos y sobre una base de datos de destino creada para ese fin. No ejecute este procedimiento sobre la base productiva sin una ventana de mantenimiento y una copia adicional verificada.
+
+```powershell
+# Verificar la integridad del archivo antes de restaurar.
+docker compose exec backup gzip -t /backups/mysql-AAAAMMDDTHHMMSSZ.sql.gz
+
+# Restaurar hacia la base configurada en .env.
+Get-Content .\storage\backups\mysql-AAAAMMDDTHHMMSSZ.sql.gz -Encoding Byte |
+  docker compose exec -T database sh -lc 'gzip -dc | mysql -u root -p"$MYSQL_ROOT_PASSWORD"'
+```
+
+Después se debe iniciar la aplicación, ejecutar `php artisan migrate --force`, comprobar `/up` y registrar el resultado de la prueba de restauración. Para producción, configure además un segundo destino externo cifrado; la copia local no es suficiente.

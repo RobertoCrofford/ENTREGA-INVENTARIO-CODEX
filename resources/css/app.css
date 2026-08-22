@@ -2,5 +2,238 @@
 @import 'bootstrap-icons/font/bootstrap-icons.css';
 
 :root {
-    font-family: 'Segoe UI', Arial, sans-serif;
+    --inst-blue: #003b6f;
+    --inst-blue-dark: #002b52;
+    --inst-blue-light: #eaf2f8;
+    --inst-accent: #00a6a6;
+    --inst-ink: #1c2b39;
+    --inst-muted: #637381;
+    --inst-border: #d8e1e8;
+    font-family: Aptos, Calibri, 'Trebuchet MS', Arial, sans-serif;
+}
+
+body.institutional-page {
+    color: var(--inst-ink);
+    background: #f4f7fa !important;
+    letter-spacing: .005em;
+}
+
+.institutional-navbar {
+    min-height: 68px;
+    background: linear-gradient(105deg, var(--inst-blue-dark), var(--inst-blue)) !important;
+    border-bottom: 3px solid var(--inst-accent);
+    box-shadow: 0 2px 12px rgb(20 43 68 / 18%);
+}
+
+.institutional-navbar .navbar-brand {
+    letter-spacing: .015em;
+    font-size: 1.05rem;
+}
+
+.institutional-navbar .navbar-brand::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 22px;
+    margin-right: 10px;
+    vertical-align: -5px;
+    background: var(--inst-accent);
+    border-radius: 2px;
+}
+
+.institutional-navbar a.link-light {
+    opacity: .88;
+    transition: opacity .15s ease, color .15s ease;
+}
+
+.institutional-navbar a.link-light:hover,
+.institutional-navbar a.link-light:focus {
+    color: #fff !important;
+    opacity: 1;
+}
+
+.app-content {
+    min-height: calc(100vh - 68px);
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+    padding: 1.65rem;
+    background: #fff;
+    border: 1px solid var(--inst-border);
+    border-top: 4px solid var(--inst-blue);
+    border-radius: .75rem;
+    box-shadow: 0 8px 24px rgb(23 48 72 / 8%);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--inst-blue-dark);
+    font-family: Bahnschrift, Aptos Display, Aptos, Calibri, sans-serif;
+    font-weight: 650;
+    letter-spacing: .01em;
+}
+
+.card {
+    border: 1px solid var(--inst-border);
+    border-radius: .7rem;
+    box-shadow: 0 2px 8px rgb(23 48 72 / 6%);
+    overflow: hidden;
+}
+
+.card-header,
+.card-footer {
+    background-color: #f8fafc;
+    border-color: var(--inst-border);
+    font-weight: 600;
+}
+
+.card-header {
+    color: var(--inst-blue-dark);
+}
+
+.btn {
+    border-radius: .4rem;
+    font-weight: 600;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--inst-blue);
+    --bs-btn-border-color: var(--inst-blue);
+    --bs-btn-hover-bg: var(--inst-blue-dark);
+    --bs-btn-hover-border-color: var(--inst-blue-dark);
+    --bs-btn-active-bg: var(--inst-blue-dark);
+    --bs-btn-active-border-color: var(--inst-blue-dark);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--inst-blue);
+    --bs-btn-border-color: var(--inst-blue);
+    --bs-btn-hover-bg: var(--inst-blue);
+    --bs-btn-hover-border-color: var(--inst-blue);
+}
+
+.form-label {
+    color: var(--inst-ink);
+    font-family: Bahnschrift, Aptos, Calibri, sans-serif;
+    font-size: .88rem;
+    font-weight: 650;
+}
+
+.form-control,
+.form-select {
+    border-color: #bfcdd8;
+    border-radius: .4rem;
+    padding: .58rem .72rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #4e91c6;
+    box-shadow: 0 0 0 .2rem rgb(0 59 111 / 14%);
+}
+
+.form-control::placeholder {
+    color: #8493a0;
+    font-size: .9rem;
+    opacity: 1;
+}
+
+.table > :not(caption) > * > * {
+    padding: .8rem .9rem;
+    border-color: #e1e8ee;
+}
+
+.table thead th {
+    color: var(--inst-blue-dark);
+    background: var(--inst-blue-light);
+    border-bottom-width: 1px;
+    font-size: .78rem;
+    letter-spacing: .035em;
+    text-transform: uppercase;
+}
+
+.table tbody tr:hover {
+    background-color: #f5faff;
+}
+
+.list-group-item {
+    border-color: var(--inst-border);
+}
+
+.list-group-item-warning {
+    background-color: #fff8df;
+    border-left: 4px solid #e9ad22;
+}
+
+.alert {
+    border: 0;
+    border-radius: .55rem;
+}
+
+.alert-success {
+    color: #145b45;
+    background: #e5f5ee;
+}
+
+.alert-warning {
+    color: #74520b;
+    background: #fff4d6;
+}
+
+.login-page {
+    background: linear-gradient(135deg, #edf4f8, #f7fafb 58%, #e2f1f1) !important;
+}
+
+.login-page .container {
+    position: relative;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.login-page .container::before {
+    position: absolute;
+    inset: 0 .75rem;
+    content: '';
+    pointer-events: none;
+    border: 1px solid rgb(0 59 111 / 16%);
+    border-top: 4px solid var(--inst-blue);
+    border-radius: .85rem;
+}
+
+.login-card {
+    border-top: 4px solid var(--inst-accent);
+}
+
+.institution-mark {
+    display: grid;
+    width: 43px;
+    height: 43px;
+    place-items: center;
+    color: #fff;
+    background: var(--inst-blue);
+    border-radius: .55rem;
+    font-size: 1.3rem;
+}
+
+.pagination {
+    --bs-pagination-color: var(--inst-blue);
+    --bs-pagination-hover-color: var(--inst-blue-dark);
+    --bs-pagination-focus-color: var(--inst-blue-dark);
+    --bs-pagination-active-bg: var(--inst-blue);
+    --bs-pagination-active-border-color: var(--inst-blue);
+}
+
+@media (max-width: 991.98px) {
+    .institutional-navbar .container {
+        gap: .7rem;
+    }
+
+    .institutional-navbar .d-flex {
+        flex-wrap: wrap;
+        padding-bottom: .4rem;
+    }
+
+    .app-content {
+        margin-top: .75rem;
+        margin-bottom: .75rem;
+        padding: 1.1rem;
+    }
 }
