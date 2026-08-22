@@ -1,0 +1,19 @@
+Implementa notificaciones por correo, auditoría completa y archivo lógico.
+
+Correo:
+- Remitente configurable; usar un transporte local seguro o `log` en desarrollo si no existen credenciales.
+- Eventos: solicitud y resolución de baja, stock agotado/recuperado, importación con errores, respaldo fallido y error crítico.
+- Evitar repetición mientras un producto continúa agotado.
+- Queue con reintentos; fallo de correo no revierte negocio.
+
+Auditoría:
+- Actor, acción, entidad, antes/después redactados, motivo, IP, navegador, correlación, resultado y fecha UTC.
+- Nunca contraseñas, tokens ni secretos.
+- Últimos 12 meses por defecto; anteriores archivados lógicamente y consultables solo por Director/Superadministrador según matriz.
+- No eliminar automáticamente sin respaldo externo verificado.
+
+Criterios de aceptación:
+- Pruebas de deduplicación de alertas, fallo/reintento, redacción y permisos.
+- Búsqueda por usuario, entidad, fecha y correlación.
+- La auditoría no puede modificarse desde la interfaz.
+

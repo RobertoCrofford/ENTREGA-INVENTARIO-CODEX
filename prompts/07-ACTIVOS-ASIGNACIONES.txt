@@ -1,0 +1,25 @@
+Implementa activos individuales, eventos, asignaciones y traslados.
+
+Reglas:
+- Activo fijo obligatorio y único.
+- Código institucional opcional, único y exactamente de 13 dígitos.
+- Serie opcional.
+- Costo neto obligatorio y no negativo en altas manuales; un activo histórico importado sin costo no puede aprobarse para baja hasta completarlo.
+- Estados: Operativo, En reparación, No operativo, No localizado y Dado de baja.
+- PC: sala, bodega o taller.
+- Notebook y monitor: sala, funcionario, bodega o taller.
+- Asignación a funcionario exige nombre y correo; departamento y vencimiento opcionales.
+- Un activo tiene un solo destino actual.
+- Dado de baja no se asigna ni traslada.
+
+Implementa eventos inmutables para alta, asignación, traslado, desasignación y cambio de estado.
+
+Interfaz:
+- Búsqueda por activo fijo, código, serie, marca, modelo, estado, ubicación y responsable.
+- Ficha con estado/asignación actual e historial cronológico.
+
+Criterios de aceptación:
+- Actualización actual y evento son atómicos.
+- Código de producto y activo no pueden colisionar.
+- Pruebas concurrentes de traslado.
+- No se usan valores nulos para representar No localizado.

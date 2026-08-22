@@ -1,0 +1,24 @@
+Implementa productos fungibles, códigos escaneables y existencias por bodega.
+
+Reglas:
+- Código interno obligatorio, único y generado por sistema.
+- Número de parte común obligatorio y no único por sí solo.
+- Código escaneable opcional, numérico de 1 a 13 caracteres y único globalmente.
+- Costo neto sin IVA, no negativo y visible para todos.
+- Técnico puede crear productos y modificar costos; conservar antes/después en auditoría.
+- Existencia por producto y bodega, cantidad entera, stock mínimo fijo 0 y cantidad nunca negativa.
+- Crear producto no crea stock.
+
+Interfaz:
+- Listado paginado y búsqueda por código, número de parte, nombre, marca y categoría.
+- Ficha con stock por bodega e historial relevante.
+- Escaneo global con entrada manual y manejo de desconocidos.
+
+Criterios de aceptación:
+- Un código identifica como máximo una entidad.
+- Se conservan ceros iniciales.
+- No hay carga masiva de catálogos en selects.
+- Pruebas de unicidad, permisos, costos, inactivación, escaneo y restricción `cantidad >= 0`.
+
+No permitas modificar existencias directamente desde el CRUD.
+

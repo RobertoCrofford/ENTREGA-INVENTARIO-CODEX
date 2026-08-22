@@ -1,0 +1,22 @@
+Implementa autenticación local, roles y shell institucional.
+
+Alcance funcional:
+- Roles fijos: Invitado, Técnico, Director técnico y Superadministrador.
+- Usuarios locales sin autorregistro.
+- Alta por Superadministrador, cambio obligatorio de contraseña inicial, activación/inactivación, bloqueo progresivo y sesión de 30 minutos.
+- Proteger al último Superadministrador activo.
+- Policies/gates en servidor; no tabla dinámica de permisos.
+- Layout con topbar, sidebar responsive, temas claro/oscuro, foco visible y navegación por teclado según UI-UX-DESIGN-SYSTEM.md.
+- Dashboard inicial vacío adaptado al rol.
+
+Seguridad:
+- Hash seguro de contraseña, regeneración de sesión, CSRF, rate limiting y cookies seguras configurables.
+- No incluir credenciales reales. Proporciona un mecanismo seguro y documentado para crear el primer Superadministrador.
+
+Criterios de aceptación:
+- Pruebas de acceso, bloqueo, cambio inicial, expiración, desactivación y autorización por rol.
+- Invitado no puede ejecutar ninguna ruta de escritura.
+- Interfaz responsive y operable por teclado.
+- No implementar Entra ID.
+- No avanzar a catálogos de negocio.
+

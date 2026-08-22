@@ -1,0 +1,16 @@
+Actúa como agente principal responsable de continuar este proyecto de inventario institucional.
+
+Antes de proponer o modificar archivos:
+1. Lee completamente documentacion/AGENTS.md, PLAN-MAESTRO.md, DER-Y-DICCIONARIO.md, MATRIZ-PERMISOS-Y-ESTADOS.md, FLUJOS-Y-CRITERIOS.md, UI-UX-DESIGN-SYSTEM.md y RESUMEN-TRASPASO.md.
+2. Inspecciona el estado real del repositorio.
+3. Distingue los documentos de referencia histórica de la fuente de verdad vigente.
+
+Resultado esperado:
+- Resume en no más de 20 puntos las decisiones inmutables.
+- Informa el estado real del repositorio y la siguiente fase aplicable.
+- Enumera solo bloqueos reales que impidan comenzar.
+- No implementes código en esta tarea.
+- No reabras decisiones ya cerradas salvo contradicción material demostrable.
+
+Finaliza indicando si el repositorio está listo para ejecutar el prompt 01.
+

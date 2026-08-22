@@ -1,0 +1,20 @@
+Realiza la revisión integral previa al piloto. No agregues funciones nuevas salvo que sean necesarias para corregir un criterio incumplido.
+
+Trabajo requerido:
+- Ejecutar todas las pruebas, lint, análisis estático, build y migración desde cero.
+- Revisar cada flujo y criterio de FLUJOS-Y-CRITERIOS.md.
+- Verificar matriz de permisos mediante pruebas negativas por URL/servicio.
+- Probar concurrencia, idempotencia, deadlocks, stock 0, umbral de baja y recuperación de fallos.
+- Probar responsive, teclado, foco, contraste, zoom 200 %, temas y reducción de movimiento.
+- Cargar un conjunto de prueba representativo y medir búsqueda/reportes con más de 10.000 activos.
+- Construir contenedores limpios y ejecutar respaldo/restauración.
+- Revisar secretos, datos de demostración, archivos generados y documentación operativa.
+
+Entregables:
+- Informe de criterios aprobados/fallidos con evidencia.
+- Riesgos remanentes ordenados por severidad.
+- Checklist de infraestructura institucional pendiente: DNS, TLS, correo, logo, catálogos y respaldo externo.
+- Plan de piloto acotado a una sede y bodegas seleccionadas.
+
+No declares listo para producción mientras exista un fallo crítico, stock potencialmente negativo, restauración no probada o control de acceso incumplido.
+

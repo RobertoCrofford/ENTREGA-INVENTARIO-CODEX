@@ -1,0 +1,16 @@
+.env
+.git
+.gitignore
+.idea
+.vscode
+.codex
+node_modules
+vendor
+storage/backups
+storage/framework
+storage/logs
+public/build
+public/hot
+referencias-historicas
+documentacion
+prompts

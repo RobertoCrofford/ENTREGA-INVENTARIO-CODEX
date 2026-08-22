@@ -1,0 +1,20 @@
+Implementa dashboard por rol, reportes institucionales y exportaciones PDF/Excel.
+
+Usa la lista mínima de PLAN-MAESTRO.md y no inventes indicadores sin definición.
+
+Requisitos:
+- Dashboard distinto para Invitado, Técnico, Director y Superadministrador.
+- Reportes con logo configurable, institución, sede, fecha, usuario, filtros, paginación e identificador.
+- Todos los roles pueden ver costos.
+- Filtros por sede, bodega, periodo, estado, tipo, producto, activo, responsable y usuario cuando correspondan.
+- PDF y Excel; CSV solo como formato técnico.
+- Exportaciones grandes en cola y descarga protegida.
+- Registrar generación en bitácora.
+
+Criterios de aceptación:
+- Totales reconciliados contra datos base.
+- Consultas paginadas e indexadas para más de 10.000 activos.
+- Archivos no accesibles sin autenticación/autorización.
+- Pruebas de filtros, permisos, totales y formatos.
+- Interfaz responsive, estados vacíos y errores accionables.
+

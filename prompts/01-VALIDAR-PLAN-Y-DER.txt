@@ -1,0 +1,19 @@
+Valida la planificación antes de construir.
+
+Lee AGENTS.md y toda la documentación vigente. Contrasta PLAN-MAESTRO.md, DER-Y-DICCIONARIO.md, MATRIZ-PERMISOS-Y-ESTADOS.md y FLUJOS-Y-CRITERIOS.md.
+
+Resultado esperado:
+- Detecta contradicciones, relaciones imposibles, campos faltantes y reglas no verificables.
+- Revisa especialmente stock no negativo, idempotencia, concurrencia, asignaciones, autoaprobación excepcional, costo `> 200000`, PDF, archivo de auditoría y datos de receptor.
+- Corrige los documentos cuando el ajuste sea inequívoco y preserve el alcance.
+- Si una decisión cambia el producto, no la inventes: repórtala como bloqueo.
+- Produce una lista final de tablas de negocio y restricciones que implementarán las migraciones.
+
+No crees todavía el proyecto Laravel.
+
+Criterios de cierre:
+- Los documentos no se contradicen.
+- Cada relación importante tiene cardinalidad y regla de eliminación/inactivación.
+- Las reglas que requieren transacción están identificadas.
+- No quedan bloqueos de dominio para iniciar infraestructura.
+

@@ -1,0 +1,30 @@
+Implementa movimientos de inventario de extremo a extremo.
+
+Tipos:
+- Entrada, salida, devolución, traslado, ajuste y reversión.
+- La baja de stock se implementará en el prompt de bajas, reutilizando este motor.
+
+Reglas:
+- Borrador no afecta stock.
+- Publicado es inmutable.
+- Reversión crea movimiento compensatorio.
+- Salida siempre exige receptor y motivo.
+- Funcionario exige nombre y correo; departamento opcional.
+- Traslado exige dos bodegas distintas.
+- Ajuste solo Director técnico o Superadministrador.
+- Todas las cantidades son enteras positivas por línea.
+- Nunca stock negativo.
+- Guardar costo neto snapshot.
+- Usar transacciones, bloqueo de filas, orden consistente de bloqueos, idempotency key y reintento acotado de deadlock.
+
+Interfaz:
+- Formularios por contexto, resumen antes de publicar y comprobante final con folio y saldos.
+- Recuperación segura si se pierde la respuesta después de publicar.
+
+Criterios de aceptación:
+- Pruebas concurrentes sobre las últimas unidades.
+- Doble clic y doble `ENTER` producen una sola operación.
+- Una falla en una línea revierte todo.
+- Permisos verificados por ruta y servicio.
+- Historial y auditoría coherentes.
+

@@ -1,0 +1,25 @@
+Implementa especificaciones de PC, componentes transferibles y reparación simple.
+
+PC:
+- Procesador obligatorio.
+- Campos opcionales estructurados según DER-Y-DICCIONARIO.md.
+
+Componentes:
+- Activo fijo y serie opcionales.
+- Estados Disponible, Instalado, En reparación y Dado de baja.
+- Un componente solo puede estar instalado en un PC.
+- Instalación, retiro y traslado conservan historial.
+
+Reparación:
+- Registrar inicio, motivo, responsable, taller y fecha.
+- Finalizar como Operativo o No operativo, con resultado.
+- Permitir referenciar el activo desde una salida de consumo técnico ya implementada.
+- No crear órdenes de trabajo, proveedores, SLA ni costos de mantenimiento.
+
+Criterios de aceptación:
+- PC sin procesador no se guarda.
+- Un movimiento concurrente no instala el componente dos veces.
+- Eventos y estado actual son consistentes.
+- Ficha de PC presenta especificaciones y componentes actuales sin perder historial.
+- Pruebas de permisos y transiciones.
+

@@ -1,0 +1,24 @@
+Implementa importaciones masivas versionadas para ubicaciones, productos, activos y componentes.
+
+Flujo:
+- Descargar plantilla Excel/CSV.
+- Subir archivo.
+- Validar sin persistir negocio.
+- Vista previa y errores por fila/campo.
+- Detectar duplicados internos y contra base.
+- Confirmar filas válidas.
+- Procesar por lotes y generar archivo de rechazados.
+
+Reglas:
+- Registrar hash del archivo, usuario, conteos, estado y errores.
+- Repetición del mismo archivo genera advertencia; nunca duplica silenciosamente.
+- Datos de demostración separados y prohibidos en producción.
+- Respetar las mismas validaciones y servicios de dominio que la interfaz individual.
+- No hacer inserciones directas que eludan eventos o auditoría.
+
+Criterios de aceptación:
+- Archivos con codificación, columnas, duplicados y filas inválidas se reportan correctamente.
+- Una importación grande no agota memoria ni bloquea la solicitud web.
+- Reintento seguro y progreso consultable.
+- Pruebas con plantillas válidas, mixtas y totalmente inválidas.
+

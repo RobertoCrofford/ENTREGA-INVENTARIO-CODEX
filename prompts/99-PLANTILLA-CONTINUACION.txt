@@ -1,0 +1,18 @@
+Continúa el proyecto respetando AGENTS.md y la documentación vigente.
+
+Objetivo de esta tarea:
+[DESCRIBIR UN SOLO RESULTADO CONCRETO]
+
+Alcance:
+- [MÓDULO O ARCHIVOS EN ALCANCE]
+
+Fuera de alcance:
+- [FUNCIONES QUE NO DEBEN ADELANTARSE]
+
+Criterios de aceptación:
+- [COMPORTAMIENTO OBSERVABLE 1]
+- [COMPORTAMIENTO OBSERVABLE 2]
+- [PRUEBA O VALIDACIÓN OBLIGATORIA]
+
+Inspecciona primero el estado real del repositorio. Implementa los cambios locales en alcance, preserva trabajo existente y ejecuta las validaciones relevantes. Si falta una decisión que cambie materialmente el producto, detente y solicita solo esa decisión. Finaliza con cambios realizados, pruebas ejecutadas, resultados y cualquier riesgo pendiente.
+

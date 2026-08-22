@@ -1,0 +1,28 @@
+Implementa solicitudes de baja de activos y stock, aprobaciones y documentos PDF.
+
+Baja de activo:
+- Técnico, Director o Superadministrador solicitan.
+- Director o Superadministrador resuelven.
+- Director no aprueba su solicitud propia.
+- Superadministrador puede autoaprobar con justificación adicional, confirmación reforzada, auditoría destacada y notificación al Director activo.
+- Al aprobar, tomar snapshot del costo y cambiar el activo a Dado de baja.
+- Generar acta PDF solo si `costo_neto_snapshot > 200000` CLP.
+- Exactamente 200000 no genera acta; costo ausente bloquea aprobación.
+
+Baja de stock:
+- Solicitud agrupada con varios productos y cantidades.
+- Técnico solicita; Director o Superadministrador aprueban.
+- Al aprobar, publicar movimiento Baja mediante el motor de inventario.
+- Generar siempre comprobante PDF agrupado.
+
+PDF:
+- Contenido y firma manual según PLAN-MAESTRO.md.
+- Guardar ruta y SHA-256.
+- Un fallo de generación no revierte la baja; queda pendiente de regeneración y alerta.
+
+Criterios de aceptación:
+- Estados y permisos completos.
+- Una sola solicitud activa por activo.
+- Stock validado nuevamente al aprobar.
+- Pruebas de umbral 199999.99, 200000 y 200000.01, autoaprobación y PDF fallido.
+

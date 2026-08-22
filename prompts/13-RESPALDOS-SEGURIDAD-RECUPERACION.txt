@@ -1,0 +1,24 @@
+Endurece despliegue, seguridad, respaldos y recuperación.
+
+Respaldos:
+- Dump diario verificado de MySQL y respaldo previo a actualizaciones.
+- Directorio local y destino remoto configurables.
+- Preparar adaptadores/documentación para NAS SMB/NFS, segundo servidor o S3 compatible sin exigirlos en desarrollo.
+- Cifrado, retención sugerida 7 diarias/4 semanales/12 mensuales, logs y alertas.
+- Proceso documentado y automatizable de restauración.
+- Prueba real de restauración en entorno vacío.
+
+Seguridad:
+- Proxy HTTPS configurable, headers, cookies seguras, rate limiting, CSRF y permisos de archivos.
+- Contenedores sin privilegios innecesarios; MySQL no expuesto.
+- Secretos fuera de Git; cuenta DB con privilegios mínimos.
+- Dependencias auditadas e imágenes fijadas a versiones compatibles.
+- `APP_DEBUG=false` productivo y páginas de error sin secretos.
+- Procedimiento de actualización, rollback y respuesta a disco lleno/base no disponible.
+
+Criterios de aceptación:
+- Restauración reproduce datos y migraciones verificables.
+- Un respaldo en el mismo disco se documenta como insuficiente para producción.
+- Análisis automatizado de dependencias y configuración sin hallazgos críticos conocidos.
+- Manual operativo utilizable por una sola persona administradora.
+

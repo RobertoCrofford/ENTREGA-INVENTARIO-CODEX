@@ -1,0 +1,24 @@
+Implementa sedes, ubicaciones y catálogos base.
+
+Alcance:
+- Sedes.
+- Ubicaciones jerárquicas de tipo bodega, sala, oficina, taller y disposición.
+- Categorías de productos.
+- Tipos y estados de activos definidos en la documentación.
+- CRUD con inactivación, no borrado físico cuando exista historial.
+- Filtros, búsqueda, paginación del servidor y validaciones.
+- Sede inicial preseleccionada sin codificar un valor fijo.
+
+Permisos:
+- Lectura según matriz.
+- Gestión por Director técnico y Superadministrador.
+
+Criterios de aceptación:
+- Unicidad de códigos dentro de sede.
+- No permitir ciclos en la jerarquía.
+- No seleccionar ubicaciones inactivas en nuevas operaciones.
+- Estados iniciales de activos se siembran de forma idempotente.
+- Pruebas de permisos, validación, jerarquía e inactivación.
+
+No implementar todavía productos, stock ni activos.
+

@@ -1,0 +1,25 @@
+Crea la fundación técnica del proyecto según AGENTS.md y los documentos vigentes.
+
+Alcance:
+- Laravel 13 con PHP 8.4.
+- MySQL 8.4 LTS.
+- Blade, Vite y Bootstrap 5.3.
+- Contenedores Linux para proxy, app, base de datos, queue y scheduler.
+- Configuración local mediante `.env.example`, sin secretos.
+- Health check de aplicación y base de datos.
+- Volúmenes persistentes y redes internas.
+- Scripts o comandos documentados para iniciar, detener, probar y migrar.
+
+No implementes aún módulos de negocio, autenticación ni tablas finales.
+
+Criterios de aceptación:
+- Una instalación limpia puede construir e iniciar todos los servicios.
+- Solo el proxy queda expuesto al host; MySQL no es público.
+- La aplicación conecta a MySQL y responde el health check.
+- Queue y scheduler pueden arrancar sin bucles de error.
+- `APP_DEBUG` y credenciales no quedan fijados en archivos versionados.
+- Existe README operativo para Windows como cliente y Linux como host productivo.
+- Se ejecutan pruebas iniciales, lint/formato y construcción frontend.
+
+Detente al completar y verificar la fundación. No avances al prompt 03.
+
