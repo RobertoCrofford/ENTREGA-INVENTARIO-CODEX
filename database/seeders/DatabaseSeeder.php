@@ -24,6 +24,21 @@ class DatabaseSeeder extends Seeder
         ] as [$codigo, $nombre, $descripcion]) {
             Role::query()->updateOrCreate(['codigo' => $codigo], compact('nombre', 'descripcion'));
         }
+        DB::table('sedes')->updateOrInsert(
+            ['codigo' => 'MAIPU'],
+            ['nombre' => 'Maipú', 'direccion' => null, 'activo' => true, 'created_at' => now(), 'updated_at' => now()]
+        );
+        $maipuId = DB::table('sedes')->where('codigo', 'MAIPU')->value('id');
+        foreach ([
+            ['BOD-MAIPU', 'Bodega', 'bodega'],
+            ['SSDD-MAIPU', 'SSDD', 'ssdd'],
+            ['SALA-MAIPU', 'Sala', 'sala'],
+        ] as [$codigo, $nombre, $tipo]) {
+            DB::table('ubicaciones')->updateOrInsert(
+                ['sede_id' => $maipuId, 'codigo' => $codigo],
+                ['tipo' => $tipo, 'nombre' => $nombre, 'edificio' => null, 'piso' => null, 'capacidad' => null, 'activo' => true, 'observacion' => null, 'created_at' => now(), 'updated_at' => now()]
+            );
+        }
         foreach ([['operativo', 'Operativo'], ['en_reparacion', 'En reparación'], ['no_operativo', 'No operativo'], ['no_localizado', 'No localizado'], ['dado_baja', 'Dado de baja']] as [$codigo, $nombre]) {
             DB::table('estados_activo')->updateOrInsert(['codigo' => $codigo], ['nombre' => $nombre, 'activo' => true]);
         }
@@ -42,3 +57,4 @@ class DatabaseSeeder extends Seeder
         }
     }
 }
+

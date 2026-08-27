@@ -6,42 +6,57 @@
     <title>@yield('title', 'Inventario Institucional')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-body-tertiary institutional-page">
-<nav class="navbar navbar-expand-lg navbar-dark institutional-navbar">
-    <div class="container"><a class="navbar-brand fw-semibold" href="{{ route('dashboard') }}">Inventario Institucional</a>
-        @auth
-            <div class="d-flex align-items-center gap-3 text-white small">
-                <a class="link-light text-decoration-none" href="{{ route('dashboard') }}">Inicio</a>
-                @can('gestionar-inventario')
-                    <a class="link-light text-decoration-none" href="{{ route('products.index') }}">Productos</a><a class="link-light text-decoration-none" href="{{ route('movements.index') }}">Movimientos</a><a class="link-light text-decoration-none" href="{{ route('assets.index') }}">Activos</a>
-                @else
-                    <a class="link-light text-decoration-none" href="{{ route('products.index') }}">Buscar</a>
-                @endcan
-                <a class="link-light text-decoration-none" href="{{ route('warehouses.index') }}">Bodega</a><a class="link-light text-decoration-none" href="{{ route('scan.index') }}">Escanear</a>
-                @can('administrar-usuarios')
-                    <a class="link-light text-decoration-none" href="{{ route('users.index') }}">Usuarios</a>
-                @endcan
-                @can('generar-bitacora')
-                    <a class="link-light text-decoration-none" href="{{ route('audit-logs.index') }}">Bitácora</a>
-                @endcan
-                <span>{{ auth()->user()->name }} · {{ auth()->user()->rol->nombre }}</span>
-                @can('ver-notificaciones')
-                    <a class="link-light text-decoration-none position-relative" href="{{ route('notifications.index') }}" title="Notificaciones" aria-label="Notificaciones">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 16a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 8 16m0-14a4.5 4.5 0 0 0-4.5 4.5c0 1.2-.36 2.78-1.24 4.36L1 13h14l-1.26-2.14C12.86 9.28 12.5 7.7 12.5 6.5A4.5 4.5 0 0 0 8 2"/></svg>
-                        @if($unreadNotifications)
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $unreadNotifications }}<span class="visually-hidden">notificaciones no leídas</span></span>
-                        @endif
-                    </a>
-                @endcan
-                <form method="POST" action="{{ route('logout') }}">@csrf <button class="btn btn-sm btn-outline-light">Salir</button></form>
+<body class="institutional-page">
+@auth
+    <header class="app-topbar">
+        <a class="brand-link" href="{{ route('dashboard') }}"><i class="bi bi-boxes"></i><span>Inventario Institucional</span></a>
+        <span class="system-status"><span></span>Operativo</span>
+        <div class="topbar-actions">
+            @can('ver-notificaciones')
+                <a class="topbar-icon position-relative" href="{{ route('notifications.index') }}" aria-label="Notificaciones"><i class="bi bi-bell"></i>@if($unreadNotifications)<span class="notification-dot">{{ $unreadNotifications }}</span>@endif</a>
+            @endcan
+            <div class="dropdown">
+                <button class="user-menu dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-person-circle"></i><span>{{ auth()->user()->name }}</span></button>
+                <ul class="dropdown-menu dropdown-menu-end shadow">
+                    <li><span class="dropdown-header">{{ auth()->user()->rol?->nombre ?? 'Usuario' }}</span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><form method="POST" action="{{ route('logout') }}">@csrf<button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</button></form></li>
+                </ul>
             </div>
-        @endauth
+        </div>
+    </header>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <div class="sidebar-section">Operación</div>
+            <nav class="sidebar-nav">
+                <a class="sidebar-link @if(request()->routeIs('dashboard')) active @endif" href="{{ route('dashboard') }}"><i class="bi bi-grid-1x2"></i>Inicio</a>
+                <a class="sidebar-link @if(request()->routeIs('scan.*')) active @endif" href="{{ route('scan.index') }}"><i class="bi bi-upc-scan"></i>Escanear</a>
+                <a class="sidebar-link @if(request()->routeIs('products.*')) active @endif" href="{{ route('products.index') }}"><i class="bi bi-box-seam"></i>Productos</a>
+                @can('gestionar-inventario')
+                    <a class="sidebar-link @if(request()->routeIs('movements.*')) active @endif" href="{{ route('movements.index') }}"><i class="bi bi-arrow-left-right"></i>Movimientos</a>
+                    <a class="sidebar-link @if(request()->routeIs('assets.*')) active @endif" href="{{ route('assets.index') }}"><i class="bi bi-pc-display"></i>Activos</a>
+                    <a class="sidebar-link @if(request()->routeIs('repairs.*')) active @endif" href="{{ route('repairs.index') }}"><i class="bi bi-tools"></i>Reparaciones</a>
+                @endcan
+                <a class="sidebar-link @if(request()->routeIs('warehouses.*')) active @endif" href="{{ route('warehouses.index') }}"><i class="bi bi-building"></i>Bodega</a>
+            </nav>
+            @canany(['administrar-usuarios', 'generar-bitacora'])
+                <div class="sidebar-section mt-4">Administración</div>
+                <nav class="sidebar-nav">
+                    @can('administrar-usuarios')<a class="sidebar-link @if(request()->routeIs('users.*')) active @endif" href="{{ route('users.index') }}"><i class="bi bi-people"></i>Usuarios</a>@endcan
+                    @can('generar-bitacora')<a class="sidebar-link @if(request()->routeIs('audit-logs.*')) active @endif" href="{{ route('audit-logs.index') }}"><i class="bi bi-journal-text"></i>Bitácora</a>@endcan
+                </nav>
+            @endcanany
+            <div class="sidebar-footer"><i class="bi bi-shield-check"></i>Los cambios publicados conservan trazabilidad.</div>
+        </aside>
+        <main class="app-content">
+            @if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
+            @if(session('warning')) <div class="alert alert-warning">{{ session('warning') }}</div> @endif
+            @yield('content')
+        </main>
     </div>
-</nav>
-<main class="container py-4 app-content">
-    @if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
-    @if(session('warning')) <div class="alert alert-warning">{{ session('warning') }}</div> @endif
-    @yield('content')
-</main>
+@else
+    <main class="container py-4">@yield('content')</main>
+@endauth
 </body>
 </html>
+
