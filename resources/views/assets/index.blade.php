@@ -1,3 +1,48 @@
 @extends('layouts.app')
-@section('title','Activos')
-@section('content')<div class="d-flex justify-content-between mb-3"><h1 class="h3">Activos</h1>@can('gestionar-inventario')<a class="btn btn-primary" href="{{ route('assets.create') }}">Registrar activo</a>@endcan</div><form class="mb-3"><input name="q" class="form-control" value="{{ request('q') }}" placeholder="Buscar activo fijo, serie, marca o modelo"></form><div class="card"><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Activo fijo</th><th>Tipo</th><th>Estado</th><th>Ubicación</th><th></th></tr></thead><tbody>@forelse($assets as $asset)<tr><td>{{ $asset->activo_fijo }}<div class="small text-body-secondary">{{ $asset->marca }} {{ $asset->modelo }}</div></td><td>{{ $asset->type->nombre }}</td><td>{{ $asset->status->nombre }}</td><td>{{ $asset->ubicacion_actual_id ?? $asset->responsable_nombre ?? 'No asignado' }}</td><td>@can('gestionar-inventario')<a class="btn btn-sm btn-outline-primary" href="{{ route('assets.edit',$asset) }}">Editar</a>@endcan</td></tr>@empty<tr><td class="p-4 text-center" colspan="5">Sin activos.</td></tr>@endforelse</tbody></table></div></div><div class="mt-3">{{ $assets->links() }}</div>@endsection
+
+@section('title', 'Activos')
+
+@section('content')
+<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+    <div><h1 class="h3 mb-1">Activos</h1><p class="text-body-secondary mb-0">Busca un activo para consultar sus datos.</p></div>
+    @can('gestionar-inventario')<a class="btn btn-primary" href="{{ route('assets.create') }}"><i class="bi bi-plus-lg me-1"></i>Registrar activo</a>@endcan
+</div>
+
+<form class="mb-3" method="GET">
+    <div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="q" class="form-control" value="{{ $term }}" placeholder="Buscar activo fijo, serie, marca o modelo" autofocus><button class="btn btn-outline-primary" type="submit">Buscar</button></div>
+</form>
+
+@if($term === '')
+    <div class="card"><div class="card-body text-center py-5 text-body-secondary"><i class="bi bi-search fs-2 d-block mb-2"></i>Ingresa un código, serie, marca o modelo para ver el detalle de un activo.</div></div>
+@elseif($assets->isEmpty())
+    <div class="card"><div class="card-body text-center py-5 text-body-secondary">No se encontraron activos para “{{ $term }}”.</div></div>
+@else
+    <p class="text-body-secondary small">{{ $assets->total() }} resultado(s) para “{{ $term }}”.</p>
+    <div class="row g-3">
+        @foreach($assets as $asset)
+            <div class="col-12">
+                <article class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                            <div><span class="eyebrow">Activo fijo</span><h2 class="h5 mb-0">{{ $asset->activo_fijo }}</h2></div>
+                            @can('gestionar-inventario')<a class="btn btn-sm btn-outline-primary" href="{{ route('assets.edit', $asset) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>@endcan
+                        </div>
+                        <dl class="row mb-0 details-list">
+                            <dt class="col-md-3">Tipo</dt><dd class="col-md-3">{{ $asset->type?->nombre ?? '—' }}</dd>
+                            <dt class="col-md-3">Estado</dt><dd class="col-md-3">{{ $asset->status?->nombre ?? '—' }}</dd>
+                            <dt class="col-md-3">Marca / modelo</dt><dd class="col-md-3">{{ trim(($asset->marca ?? '').' '.($asset->modelo ?? '')) ?: '—' }}</dd>
+                            <dt class="col-md-3">N.º de serie</dt><dd class="col-md-3">{{ $asset->numero_serie ?: '—' }}</dd>
+                            <dt class="col-md-3">Ubicación</dt><dd class="col-md-3">{{ $asset->location?->nombre ?? '—' }}</dd>
+                            <dt class="col-md-3">Responsable</dt><dd class="col-md-3">{{ $asset->responsable_nombre ?: '—' }}</dd>
+                            <dt class="col-md-3">Costo neto</dt><dd class="col-md-3">{{ $asset->costo_neto_actual !== null ? '$'.number_format($asset->costo_neto_actual, 0, ',', '.') : '—' }}</dd>
+                            <dt class="col-md-3">Observación</dt><dd class="col-md-3">{{ $asset->observacion ?: '—' }}</dd>
+                        </dl>
+                    </div>
+                </article>
+            </div>
+        @endforeach
+    </div>
+    <div class="mt-3">{{ $assets->links() }}</div>
+@endif
+@endsection
+
