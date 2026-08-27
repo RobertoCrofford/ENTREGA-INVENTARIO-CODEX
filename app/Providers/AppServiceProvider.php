@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 
@@ -40,7 +41,12 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('layouts.app', function ($view): void {
             $user = auth()->user();
-            $view->with('unreadNotifications', $user ? DB::table('notificaciones')->where('usuario_id', $user->id)->whereNull('leido_at')->count() : 0);
+            $unreadNotifications = $user && Schema::hasTable('notificaciones')
+                ? DB::table('notificaciones')->where('usuario_id', $user->id)->whereNull('leido_at')->count()
+                : 0;
+
+            $view->with('unreadNotifications', $unreadNotifications);
         });
     }
 }
+
