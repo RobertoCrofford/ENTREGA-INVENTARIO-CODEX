@@ -25,4 +25,10 @@ class Asset extends Model
     {
         return $this->belongsTo(AssetType::class, 'tipo_activo_id');
     }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'ubicacion_actual_id');
+    }
 }
+
