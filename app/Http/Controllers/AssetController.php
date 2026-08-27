@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Asset;
 use App\Models\AssetStatus;
 use App\Models\AssetType;
+use App\Models\Role;
 use App\Services\AssetLifecycleService;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,13 @@ class AssetController extends Controller
     {
         Gate::authorize('consultar-inventario');
 
-        return view('assets.index', ['assets' => Asset::query()->with(['type', 'status'])->when($request->q, fn ($query, $term) => $query->whereAny(['activo_fijo', 'numero_serie', 'marca', 'modelo'], 'like', "%{$term}%"))->orderByDesc('id')->paginate(20)->withQueryString()]);
+        $term = trim((string) $request->query('q', ''));
+        $assets = Asset::query()->with(['type', 'status', 'location'])
+            ->when($term !== '', fn ($query) => $query->whereAny(['activo_fijo', 'numero_serie', 'marca', 'modelo'], 'like', "%{$term}%"))
+            ->when($term === '', fn ($query) => $query->whereRaw('1 = 0'))
+            ->orderByDesc('id')->paginate(20)->withQueryString();
+
+        return view('assets.index', compact('assets', 'term'));
     }
 
     public function create(Request $request): View
@@ -78,6 +85,41 @@ class AssetController extends Controller
         return back()->with('success', 'Estado actualizado y registrado en historial.');
     }
 
+    public function reincorporate(Request $request, Asset $asset, AuditService $audit): RedirectResponse
+    {
+        abort_unless($request->user()->tieneRol(Role::SUPERADMIN), 403);
+        $data = $request->validate([
+            'ubicacion_actual_id' => ['required', Rule::exists('ubicaciones', 'id')->where('activo', true)],
+            'motivo' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+        $asset = DB::transaction(function () use ($asset, $data, $request) {
+            $asset = Asset::query()->with('status')->lockForUpdate()->findOrFail($asset->id);
+            abort_unless($asset->status->codigo === 'dado_baja', 422, 'Solo se pueden reincorporar activos dados de baja.');
+            $operational = AssetStatus::query()->where('codigo', 'operativo')->where('activo', true)->firstOrFail();
+            $before = $asset->toArray();
+            $asset->update([
+                'estado_activo_id' => $operational->id,
+                'ubicacion_actual_id' => $data['ubicacion_actual_id'],
+            ]);
+            DB::table('eventos_activo')->insert([
+                'activo_id' => $asset->id,
+                'tipo' => 'reincorporacion',
+                'estado_origen_id' => $before['estado_activo_id'],
+                'estado_destino_id' => $operational->id,
+                'ubicacion_destino_id' => $data['ubicacion_actual_id'],
+                'motivo' => $data['motivo'],
+                'ejecutado_por' => $request->user()->id,
+                'ocurrido_at' => now(),
+            ]);
+
+            return [$asset->fresh(), $before];
+        });
+        [$updatedAsset, $before] = $asset;
+        $audit->record($request->user(), 'reincorporar', 'activo', $updatedAsset->id, $before, $updatedAsset->toArray(), $data['motivo']);
+
+        return redirect()->route('assets.edit', $updatedAsset)->with('success', 'Activo reincorporado como operativo y registrado en la bitácora.');
+    }
+
     private function formData(Asset $asset): array
     {
         return ['asset' => $asset, 'sites' => DB::table('sedes')->where('activo', true)->orderBy('nombre')->get(), 'types' => AssetType::where('activo', true)->orderBy('nombre')->get(), 'statuses' => AssetStatus::where('activo', true)->orderBy('nombre')->get(), 'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('nombre')->get()];
@@ -116,3 +158,4 @@ class AssetController extends Controller
         return $record?->id ?? DB::table('codigos_escaneo')->insertGetId(['codigo' => $code, 'activo' => true, 'created_at' => now(), 'updated_at' => now()]);
     }
 }
+
