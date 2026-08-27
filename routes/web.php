@@ -7,11 +7,13 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\RepairController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 Route::redirect('/', '/dashboard');
 
@@ -28,10 +30,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::middleware('password.changed')->group(function () {
         Route::get('/dashboard', function () {
             return view('dashboard', [
-                'stockAgotado' => DB::table('existencias')->where('activo', true)->where('cantidad', 0)->count(),
-                'activosReparacion' => DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'en_reparacion')->count(),
-                'solicitudesPendientes' => DB::table('solicitudes_baja_activo')->where('estado', 'pendiente')->count(),
-                'movimientosRecientes' => DB::table('movimientos_inventario')->where('estado', 'publicado')->orderByDesc('publicado_at')->limit(5)->get(),
+                'stockAgotado' => Schema::hasTable('existencias') ? DB::table('existencias')->where('activo', true)->where('cantidad', 0)->count() : 0,
+                'activosReparacion' => Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'en_reparacion')->count() : 0,
+                'solicitudesPendientes' => Schema::hasTable('solicitudes_baja_activo') ? DB::table('solicitudes_baja_activo')->where('estado', 'pendiente')->count() : 0,
+                'movimientosRecientes' => Schema::hasTable('movimientos_inventario') ? DB::table('movimientos_inventario')->where('estado', 'publicado')->orderByDesc('publicado_at')->limit(5)->get() : collect(),
             ]);
         })->name('dashboard');
         Route::resource('users', UserController::class)->except('show', 'destroy');
@@ -48,5 +50,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
         Route::resource('assets', AssetController::class)->except('destroy');
         Route::post('assets/{asset}/status', [AssetController::class, 'changeStatus'])->name('assets.status');
+        Route::post('assets/{asset}/reincorporate', [AssetController::class, 'reincorporate'])->name('assets.reincorporate');
+        Route::resource('repairs', RepairController::class)->only('index', 'create', 'store');
+        Route::post('repairs/{repair}/complete', [RepairController::class, 'complete'])->name('repairs.complete');
     });
 });
+
