@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Asset;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\AuditService;
@@ -18,7 +19,20 @@ class ProductController extends Controller
     {
         Gate::authorize('consultar-inventario');
 
-        return view('products.index', ['products' => Product::query()->with('categoria')->when($request->q, fn ($q, $term) => $q->whereAny(['codigo_interno', 'numero_parte', 'nombre', 'marca', 'modelo'], 'like', "%{$term}%"))->orderBy('nombre')->paginate(20)->withQueryString()]);
+        $term = trim((string) $request->query('q', ''));
+        $products = Product::query()->with('categoria')
+            ->when($term !== '', fn ($query) => $query->whereAny(['codigo_interno', 'numero_parte', 'nombre', 'marca', 'modelo'], 'like', "%{$term}%"))
+            ->when($term === '', fn ($query) => $query->whereRaw('1 = 0'))
+            ->orderBy('nombre')->paginate(20)->withQueryString();
+
+        $assetMatch = $term === '' ? null : Asset::query()
+            ->with(['type', 'status'])
+            ->where(fn ($query) => $query->where('activo_fijo', $term)
+                ->orWhere('numero_serie', $term)
+                ->orWhereIn('codigo_escaneo_id', DB::table('codigos_escaneo')->where('codigo', $term)->select('id')))
+            ->first();
+
+        return view('products.index', compact('products', 'term', 'assetMatch'));
     }
 
     public function create(Request $request): View
@@ -113,3 +127,4 @@ class ProductController extends Controller
         return $record?->id ?? DB::table('codigos_escaneo')->insertGetId(['codigo' => $code, 'activo' => true, 'created_at' => now(), 'updated_at' => now()]);
     }
 }
+
