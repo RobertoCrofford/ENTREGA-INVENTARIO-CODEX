@@ -35,6 +35,7 @@
                 @can('gestionar-inventario')
                     <a class="sidebar-link @if(request()->routeIs('movements.*')) active @endif" href="{{ route('movements.index') }}"><i class="bi bi-arrow-left-right"></i>Movimientos</a>
                     <a class="sidebar-link @if(request()->routeIs('assets.*')) active @endif" href="{{ route('assets.index') }}"><i class="bi bi-pc-display"></i>Activos</a>
+                    <a class="sidebar-link @if(request()->routeIs('imports.*')) active @endif" href="{{ route('imports.assets.index') }}"><i class="bi bi-cloud-arrow-up"></i>Importaciones</a>
                     <a class="sidebar-link @if(request()->routeIs('repairs.*')) active @endif" href="{{ route('repairs.index') }}"><i class="bi bi-tools"></i>Reparaciones</a>
                 @endcan
                 <a class="sidebar-link @if(request()->routeIs('warehouses.*')) active @endif" href="{{ route('warehouses.index') }}"><i class="bi bi-building"></i>Bodega</a>

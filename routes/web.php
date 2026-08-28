@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetImportController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -49,6 +50,12 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('products', ProductController::class);
         Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
         Route::resource('assets', AssetController::class)->except('destroy');
+        Route::get('imports/assets', [AssetImportController::class, 'index'])->name('imports.assets.index');
+        Route::get('imports/assets/template', [AssetImportController::class, 'template'])->name('imports.assets.template');
+        Route::post('imports/assets/preview', [AssetImportController::class, 'preview'])->name('imports.assets.preview');
+        Route::get('imports/assets/{import}', [AssetImportController::class, 'show'])->name('imports.assets.show');
+        Route::post('imports/assets/{import}/confirm', [AssetImportController::class, 'confirm'])->name('imports.assets.confirm');
+        Route::get('imports/assets/{import}/rejected', [AssetImportController::class, 'rejected'])->name('imports.assets.rejected');
         Route::post('assets/{asset}/status', [AssetController::class, 'changeStatus'])->name('assets.status');
         Route::post('assets/{asset}/reincorporate', [AssetController::class, 'reincorporate'])->name('assets.reincorporate');
         Route::resource('repairs', RepairController::class)->only('index', 'create', 'store');
