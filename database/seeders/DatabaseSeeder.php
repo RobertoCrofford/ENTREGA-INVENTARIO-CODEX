@@ -42,7 +42,7 @@ class DatabaseSeeder extends Seeder
         foreach ([['operativo', 'Operativo'], ['en_reparacion', 'En reparación'], ['no_operativo', 'No operativo'], ['no_localizado', 'No localizado'], ['dado_baja', 'Dado de baja']] as [$codigo, $nombre]) {
             DB::table('estados_activo')->updateOrInsert(['codigo' => $codigo], ['nombre' => $nombre, 'activo' => true]);
         }
-        foreach ([['pc', 'PC', true], ['notebook', 'Notebook', false], ['monitor', 'Monitor', false], ['otro', 'Otro', false]] as [$codigo, $nombre, $esPc]) {
+        foreach ([['pc', 'PC', true], ['notebook', 'Notebook', false], ['monitor', 'Monitor', false], ['data', 'Data', false], ['otro', 'Otro', false]] as [$codigo, $nombre, $esPc]) {
             DB::table('tipos_activo')->updateOrInsert(['codigo' => $codigo], ['nombre' => $nombre, 'es_pc' => $esPc, 'activo' => true]);
         }
         foreach ([
