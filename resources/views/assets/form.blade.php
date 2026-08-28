@@ -17,7 +17,7 @@
         @endif
         <fieldset @disabled($asset->exists && $asset->status?->codigo === 'dado_baja')>
         <div class="row g-3">
-            <div class="col-md-4"><label class="form-label">Sede</label><select name="sede_id" class="form-select" required>@foreach($sites as $site)<option value="{{ $site->id }}" @selected(old('sede_id', $asset->sede_id) == $site->id)>{{ $site->nombre }}</option>@endforeach</select></div>
+            <div class="col-md-4"><label class="form-label">Sede</label><select name="sede_id" class="form-select" required>@foreach($sites as $site)<option value="{{ $site->id }}" @selected(old('sede_id', $asset->sede_id ?? $sites->firstWhere('codigo', 'MAIPU')?->id) == $site->id)>{{ $site->nombre }}</option>@endforeach</select></div>
             <div class="col-md-4"><label class="form-label">Tipo</label><select name="tipo_activo_id" class="form-select">@foreach($types as $type)<option value="{{ $type->id }}" @selected(old('tipo_activo_id', $asset->tipo_activo_id) == $type->id)>{{ $type->nombre }}</option>@endforeach</select></div>
             <div class="col-md-4"><label class="form-label">Estado</label><select name="estado_activo_id" class="form-select">@foreach($statuses as $status)<option value="{{ $status->id }}" @selected(old('estado_activo_id', $asset->estado_activo_id) == $status->id)>{{ $status->nombre }}</option>@endforeach</select></div>
             <div class="col-md-6"><label class="form-label">Activo fijo</label><input name="activo_fijo" class="form-control" value="{{ old('activo_fijo', $asset->activo_fijo ?: ($scanCode ?? '')) }}" required></div>
