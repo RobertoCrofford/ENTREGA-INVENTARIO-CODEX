@@ -31,7 +31,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            if ($request->expectsJson()) {
+            if ($request->expectsJson()
+                || $exception instanceof \Illuminate\Auth\AuthenticationException
+                || $exception instanceof \Illuminate\Validation\ValidationException) {
                 return null;
             }
 
