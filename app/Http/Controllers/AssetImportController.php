@@ -48,6 +48,43 @@ class AssetImportController extends Controller
         return response($contents, 200, ['Content-Type' => 'text/csv; charset=UTF-8', 'Content-Disposition' => 'attachment; filename="plantilla-activos.csv"']);
     }
 
+    public function export()
+    {
+        Gate::authorize('consultar-inventario');
+        abort_unless(class_exists(ZipArchive::class), 422, 'El servidor no tiene habilitada la generación de archivos Excel.');
+        $path = tempnam(sys_get_temp_dir(), 'activos-');
+        $zip = new ZipArchive;
+        abort_unless($zip->open($path, ZipArchive::OVERWRITE) === true, 500, 'No se pudo generar el archivo Excel.');
+
+        $headers = ['Activo fijo', 'Numero de serie', 'ubicación', 'Denominación del activo fijo', 'Ce.coste', 'Cantidad', 'Fe.capit.', 'Valor Neto', 'Vida Restante', 'Encargado'];
+        $rows = [$this->xlsxRow(1, $headers)];
+        $assets = Asset::query()->with('location')->orderBy('activo_fijo')->cursor();
+        $rowNumber = 2;
+        foreach ($assets as $asset) {
+            $rows[] = $this->xlsxRow($rowNumber++, [
+                $asset->activo_fijo,
+                $asset->numero_serie,
+                $asset->location?->nombre,
+                $asset->modelo,
+                $this->observationValue($asset->observacion, 'Centro de costo'),
+                1,
+                $this->observationValue($asset->observacion, 'Fecha de capitalización'),
+                $asset->costo_neto_actual,
+                $this->observationValue($asset->observacion, 'Vida restante'),
+                $asset->responsable_nombre ?: $this->observationValue($asset->observacion, 'Encargado'),
+            ]);
+        }
+        $sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'.implode('', $rows).'</sheetData></worksheet>';
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+        $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+        $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="activos" sheetId="1" r:id="rId1"/></sheets></workbook>');
+        $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>');
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheet);
+        $zip->close();
+
+        return response()->download($path, 'activos-auditoria-'.now()->format('Y-m-d').'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
+    }
+
     public function preview(Request $request): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
@@ -259,6 +296,41 @@ class AssetImportController extends Controller
     private function auditLocationId(int $siteId, string $code, string $name): int
     {
         return DB::table('ubicaciones')->where('sede_id', $siteId)->where('codigo', $code)->value('id') ?? DB::table('ubicaciones')->insertGetId(['sede_id' => $siteId, 'tipo' => 'sala', 'codigo' => $code, 'nombre' => $name, 'activo' => true, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    private function xlsxRow(int $row, array $values): string
+    {
+        $cells = [];
+        foreach ($values as $index => $value) {
+            $reference = $this->columnLetters($index + 1).$row;
+            if (is_numeric($value) && ! in_array($index, [0, 1], true)) {
+                $cells[] = '<c r="'.$reference.'"><v>'.htmlspecialchars((string) $value, ENT_XML1).'</v></c>';
+
+                continue;
+            }
+            $cells[] = '<c r="'.$reference.'" t="inlineStr"><is><t>'.htmlspecialchars((string) $value, ENT_XML1 | ENT_COMPAT, 'UTF-8').'</t></is></c>';
+        }
+
+        return '<row r="'.$row.'">'.implode('', $cells).'</row>';
+    }
+
+    private function columnLetters(int $number): string
+    {
+        $letters = '';
+        while ($number > 0) {
+            $number--;
+            $letters = chr(65 + ($number % 26)).$letters;
+            $number = intdiv($number, 26);
+        }
+
+        return $letters;
+    }
+
+    private function observationValue(?string $observation, string $label): string
+    {
+        preg_match('/'.preg_quote($label, '/').':\s*([^|]+)/u', (string) $observation, $matches);
+
+        return trim($matches[1] ?? '');
     }
 
     private function extension(string $filename): string

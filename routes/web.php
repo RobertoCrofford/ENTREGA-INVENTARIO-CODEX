@@ -51,6 +51,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
         Route::resource('assets', AssetController::class)->except('destroy');
         Route::get('imports/assets', [AssetImportController::class, 'index'])->name('imports.assets.index');
+        Route::get('imports/assets/export', [AssetImportController::class, 'export'])->name('imports.assets.export');
         Route::get('imports/assets/template', [AssetImportController::class, 'template'])->name('imports.assets.template');
         Route::post('imports/assets/preview', [AssetImportController::class, 'preview'])->name('imports.assets.preview');
         Route::get('imports/assets/{import}', [AssetImportController::class, 'show'])->name('imports.assets.show');
