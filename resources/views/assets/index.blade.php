@@ -12,6 +12,10 @@
     <div class="row g-2"><div class="col-md"><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="q" class="form-control" value="{{ $term }}" placeholder="Buscar activo fijo, serie, marca o modelo" autofocus></div></div><div class="col-md-3"><select name="uso" class="form-select"><option value="">Todos los usos</option><option value="administrativo" @selected($usage === 'administrativo')>Administrativo</option><option value="alumnos" @selected($usage === 'alumnos')>Alumnos</option><option value="docente" @selected($usage === 'docente')>Docente</option><option value="comun" @selected($usage === 'comun')>Uso común</option><option value="sin_definir" @selected($usage === 'sin_definir')>Sin definir</option></select></div><div class="col-md-auto"><button class="btn btn-outline-primary w-100" type="submit">Buscar</button></div></div>
 </form>
 
+@if($usage === 'sin_definir')
+    <div class="alert alert-info d-flex align-items-start gap-2" role="status"><i class="bi bi-tags fs-5"></i><div><strong>Activos pendientes de clasificación.</strong> Revisa sus datos y selecciona <em>Editar</em> para indicar si corresponden a administrativos, alumnos, docentes o uso común.</div></div>
+@endif
+
 @if($term === '' && $usage === '')
     <div class="card"><div class="card-body text-center py-5 text-body-secondary"><i class="bi bi-search fs-2 d-block mb-2"></i>Ingresa un código, serie, marca o modelo para ver el detalle de un activo.</div></div>
 @elseif($assets->isEmpty())
@@ -25,7 +29,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                             <div><span class="eyebrow">Activo fijo</span><h2 class="h5 mb-0">{{ $asset->activo_fijo }}</h2></div>
-                            @can('gestionar-inventario')<a class="btn btn-sm btn-outline-primary" href="{{ route('assets.edit', $asset) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>@endcan
+                            @can('gestionar-inventario')<a class="btn btn-sm btn-outline-primary" href="{{ route('assets.edit', $asset) }}"><i class="bi bi-pencil-square me-1"></i>{{ $asset->uso === 'sin_definir' ? 'Clasificar' : 'Editar' }}</a>@endcan
                         </div>
                         <dl class="row mb-0 details-list">
                             <dt class="col-md-3">Tipo</dt><dd class="col-md-3">{{ $asset->type?->nombre ?? '—' }}</dd>
