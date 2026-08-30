@@ -29,7 +29,11 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                             <div><span class="eyebrow">Activo fijo</span><h2 class="h5 mb-0">{{ $asset->activo_fijo }}</h2></div>
-                            @can('gestionar-inventario')<a class="btn btn-sm btn-outline-primary" href="{{ route('assets.edit', $asset) }}"><i class="bi bi-pencil-square me-1"></i>{{ $asset->uso === 'sin_definir' ? 'Clasificar' : 'Editar' }}</a>@endcan
+                            @if($asset->uso === 'sin_definir')
+                                @can('clasificar-activos')<a class="btn btn-sm btn-outline-primary" href="{{ route('assets.classify', $asset) }}"><i class="bi bi-tags me-1"></i>Clasificar</a>@endcan
+                            @else
+                                @can('gestionar-inventario')<a class="btn btn-sm btn-outline-primary" href="{{ route('assets.edit', $asset) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>@endcan
+                            @endif
                         </div>
                         <dl class="row mb-0 details-list">
                             <dt class="col-md-3">Tipo</dt><dd class="col-md-3">{{ $asset->type?->nombre ?? '—' }}</dd>

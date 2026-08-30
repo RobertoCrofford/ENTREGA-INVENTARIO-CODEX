@@ -52,6 +52,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
         Route::resource('products', ProductController::class);
         Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
+        Route::get('assets/{asset}/classify', [AssetController::class, 'classify'])->name('assets.classify');
+        Route::patch('assets/{asset}/usage', [AssetController::class, 'updateUsage'])->name('assets.update-usage');
         Route::resource('assets', AssetController::class)->except('destroy');
         Route::get('imports/assets', [AssetImportController::class, 'index'])->name('imports.assets.index');
         Route::get('imports/assets/export', [AssetImportController::class, 'export'])->name('imports.assets.export');

@@ -70,6 +70,26 @@ class AssetController extends Controller
         return view('assets.form', $this->formData($asset));
     }
 
+    public function classify(Asset $asset): View
+    {
+        Gate::authorize('clasificar-activos');
+
+        return view('assets.classify', compact('asset'));
+    }
+
+    public function updateUsage(Request $request, Asset $asset, AuditService $audit): RedirectResponse
+    {
+        Gate::authorize('clasificar-activos');
+        abort_if($asset->uso !== 'sin_definir', 422, 'Este activo ya fue clasificado.');
+
+        $data = $request->validate(['uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])]]);
+        $before = $asset->toArray();
+        $asset->update($data);
+        $audit->record($request->user(), 'clasificar', 'activo', $asset->id, $before, $asset->fresh()->toArray(), 'Clasificación de uso del activo.');
+
+        return redirect()->route('assets.index', ['uso' => 'sin_definir'])->with('success', 'Activo clasificado correctamente.');
+    }
+
     public function update(Request $request, Asset $asset, AuditService $audit): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
