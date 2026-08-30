@@ -26,7 +26,7 @@
         <div class="row g-3">
             <div class="col-md-4"><label class="form-label" for="item_type">Qué se mueve</label><select id="item_type" name="item_type" class="form-select"><option value="producto" @selected(old('item_type', 'producto') === 'producto')>Producto</option><option value="activo" @selected(old('item_type') === 'activo')>Activo fijo</option></select></div>
             <div class="col-md-4"><label class="form-label" for="tipo">Tipo</label><select id="tipo" name="tipo" class="form-select">@foreach(['entrada' => 'Entrada', 'salida' => 'Salida', 'devolucion' => 'Devolución', 'traslado' => 'Traslado', 'ajuste' => 'Ajuste', 'baja' => 'Baja'] as $value => $label)<option value="{{ $value }}" @selected(old('tipo') === $value)>{{ $label }}</option>@endforeach</select></div>
-            <div class="col-md-5"><label class="form-label" for="buscar_producto">Buscar producto</label><input class="form-control" id="buscar_producto" type="search" placeholder="Nombre, categoría o código" autocomplete="off" @disabled($products->isEmpty())><div id="resultado_busqueda_producto" class="form-text" aria-live="polite">Escribe para buscar por nombre, categoría o código.</div></div>
+            <div id="product_search_section" class="col-md-5"><label class="form-label" for="buscar_producto">Buscar producto</label><input class="form-control" id="buscar_producto" type="search" placeholder="Nombre, categoría o código" autocomplete="off" @disabled($products->isEmpty())><div id="resultado_busqueda_producto" class="form-text" aria-live="polite">Escribe para buscar por nombre, categoría o código.</div></div>
             <div class="col-md-3"><label class="form-label" for="cantidad">Cantidad</label><input class="form-control" id="cantidad" type="number" min="1" name="cantidad" value="{{ old('cantidad') }}" required></div>
             <div id="product_section" class="col-md-7"><label class="form-label" for="producto_id">Producto seleccionado</label><select id="producto_id" name="producto_id" class="form-select" size="5" required @disabled($products->isEmpty())><option value="">Selecciona un producto</option>@foreach($products as $product)<option value="{{ $product->id }}" data-search="{{ $product->nombre }} {{ $product->categoria?->nombre }} {{ $product->codigo_interno }}" data-label="{{ $product->nombre }} · {{ $product->categoria?->nombre ?? 'Sin categoría' }} · {{ $product->codigo_interno }}" @selected(old('producto_id') == $product->id)>{{ $product->nombre }} · {{ $product->categoria?->nombre ?? 'Sin categoría' }} · {{ $product->codigo_interno }}</option>@endforeach</select><div id="producto_seleccionado" class="alert alert-success py-2 mt-2 mb-0 {{ old('producto_id') ? '' : 'd-none' }}"><i class="bi bi-check-circle me-1"></i><span>{{ old('producto_id') ? 'Producto preparado para el movimiento.' : '' }}</span></div>@error('producto_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
             <div id="asset_section" class="col-md-7 d-none"><label class="form-label" for="buscar_activo">Buscar activo fijo</label><input class="form-control mb-2" id="buscar_activo" type="search" placeholder="Activo fijo, serie, marca o modelo" autocomplete="off"><select id="activo_id" name="activo_id" class="form-select" size="5" disabled><option value="">Selecciona un activo fijo</option>@foreach($assets as $asset)<option value="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" data-location="{{ $asset->ubicacion_actual_id }}">{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }} · {{ $asset->location?->nombre ?? 'Sin ubicación' }}</option>@endforeach</select><div class="form-text">El traslado usará la ubicación actual del activo como origen.</div>@error('activo_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
@@ -45,6 +45,7 @@
         const assetSearch = document.getElementById('buscar_activo');
         const assets = document.getElementById('activo_id');
         const productSection = document.getElementById('product_section');
+        const productSearchSection = document.getElementById('product_search_section');
         const assetSection = document.getElementById('asset_section');
         const movementType = document.getElementById('tipo');
         const origin = document.getElementById('origen_id');
@@ -59,6 +60,7 @@
         const toggleItemType = () => {
             const isAsset = itemType.value === 'activo';
             productSection.classList.toggle('d-none', isAsset);
+            productSearchSection.classList.toggle('d-none', isAsset);
             assetSection.classList.toggle('d-none', !isAsset);
             products.disabled = isAsset;
             products.required = !isAsset;
