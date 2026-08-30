@@ -7,9 +7,9 @@
         <a class="btn btn-primary" href="{{ route('movements.create') }}">Registrar movimiento</a>
     @endcan
 </div>
-<form class="mb-3"><input class="form-control" name="q" value="{{ request('q') }}" placeholder="Buscar por folio, producto, razón o responsable"></form>
+<form class="mb-3"><input class="form-control" name="q" value="{{ request('q') }}" placeholder="Buscar por folio, producto, activo fijo, razón o responsable"></form>
 <div class="card"><div class="table-responsive"><table class="table mb-0 align-middle">
-    <thead><tr><th>Folio</th><th>Producto</th><th>Movimiento</th><th>Responsable</th><th>Razón</th><th>Fecha</th></tr></thead>
+    <thead><tr><th>Folio</th><th>Producto / Activo</th><th>Movimiento</th><th>Responsable</th><th>Razón</th><th>Fecha</th></tr></thead>
     <tbody>
     @forelse($movements as $movement)
         <tr>
