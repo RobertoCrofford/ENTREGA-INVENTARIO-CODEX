@@ -39,7 +39,7 @@ class AuditService
         $recipients = DB::table('users')
             ->join('roles', 'roles.id', '=', 'users.rol_id')
             ->where('users.activo', true)
-            ->whereIn('roles.codigo', [Role::SUPERADMIN, Role::DIRECTOR_TECNICO])
+            ->whereIn('roles.codigo', [Role::SUPERADMIN, Role::DIRECTOR_TECNICO, Role::TECNICO])
             ->pluck('users.id');
         foreach ($recipients as $recipientId) {
             DB::table('notificaciones')->insert([
