@@ -15,7 +15,7 @@
             <div class="alert alert-danger">{{ $errors->first() }}</div>
         @endif
 
-        <form method="POST" action="{{ route('repairs.store') }}">
+        <form method="POST" action="{{ route('repairs.store') }}" enctype="multipart/form-data">
             @csrf
 
             <div class="row g-3">
@@ -60,6 +60,14 @@
                 <div class="col-12">
                     <label class="form-label" for="falla_reportada">Falla reportada</label>
                     <textarea class="form-control" id="falla_reportada" name="falla_reportada" rows="5" required>{{ old('falla_reportada') }}</textarea>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label" for="evidencias">Evidencia fotográfica <span class="text-body-secondary fw-normal">(opcional)</span></label>
+                    <input class="form-control" id="evidencias" name="evidencias[]" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+                    <div class="form-text">Puedes adjuntar hasta 5 fotos JPG, PNG o WEBP, de máximo 5 MB cada una.</div>
+                    @error('evidencias')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                    @error('evidencias.*')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
             </div>
 

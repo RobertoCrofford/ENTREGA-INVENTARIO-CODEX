@@ -24,12 +24,12 @@
     <div class="table-responsive">
         <table class="table mb-0">
             <thead>
-                <tr><th>Activo</th><th>Técnico</th><th>Prioridad</th><th>Falla reportada</th><th>Estado</th><th></th></tr>
+                <tr><th>Activo</th><th>Técnico</th><th>Prioridad</th><th>Falla reportada</th><th>Evidencia</th><th>Estado</th><th></th></tr>
             </thead>
             <tbody>
                 @if($repairs->isEmpty())
                     <tr>
-                        <td class="p-5 text-center text-body-secondary" colspan="6"><i class="bi bi-tools d-block fs-3 mb-2"></i>No hay reparaciones registradas.</td>
+                        <td class="p-5 text-center text-body-secondary" colspan="7"><i class="bi bi-tools d-block fs-3 mb-2"></i>No hay reparaciones registradas.</td>
                     </tr>
                 @else
                     @foreach($repairs as $repair)
@@ -39,6 +39,7 @@
                             <td>{{ $repair->technician?->name ?? 'Técnico no disponible' }}</td>
                             <td><span class="repair-priority priority-{{ $repair->prioridad }}">{{ ucfirst($repair->prioridad) }}</span></td>
                             <td>{{ \Illuminate\Support\Str::limit($repair->falla_reportada, 90) }}</td>
+                            <td>@forelse($repair->evidences as $evidence)<a class="d-inline-block me-1 mb-1" href="{{ route('repairs.evidence', [$repair, $evidence]) }}" target="_blank" title="Ver {{ $evidence->nombre_original }}"><img src="{{ route('repairs.evidence', [$repair, $evidence]) }}" alt="Evidencia de daño" class="rounded border" style="width:42px;height:42px;object-fit:cover"></a>@empty<span class="text-body-secondary small">Sin fotos</span>@endforelse</td>
                             <td><span class="repair-status">{{ str_replace('_', ' ', ucfirst($repair->estado)) }}</span></td>
                             <td>
                                 @if($canManageRepairs && $repair->estado !== 'resuelta' && $canCloseRepair)

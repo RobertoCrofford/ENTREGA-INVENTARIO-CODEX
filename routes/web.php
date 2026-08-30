@@ -67,6 +67,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('assets/{asset}/status', [AssetController::class, 'changeStatus'])->name('assets.status');
         Route::post('assets/{asset}/reincorporate', [AssetController::class, 'reincorporate'])->name('assets.reincorporate');
         Route::resource('repairs', RepairController::class)->only('index', 'create', 'store');
+        Route::get('repairs/{repair}/evidences/{evidence}', [RepairController::class, 'evidence'])->name('repairs.evidence');
         Route::post('repairs/{repair}/complete', [RepairController::class, 'complete'])->name('repairs.complete');
     });
 });

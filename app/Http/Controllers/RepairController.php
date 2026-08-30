@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Models\Repair;
+use App\Models\RepairEvidence;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
@@ -11,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -20,7 +22,7 @@ class RepairController extends Controller
     {
         Gate::authorize('consultar-inventario');
 
-        $repairs = Repair::query()->with(['asset', 'technician'])
+        $repairs = Repair::query()->with(['asset', 'technician', 'evidences'])
             ->when($request->q, fn ($query, $term) => $query->where('falla_reportada', 'like', "%{$term}%")
                 ->orWhereHas('asset', fn ($assets) => $assets->where('activo_fijo', 'like', "%{$term}%"))
                 ->orWhereHas('technician', fn ($users) => $users->where('name', 'like', "%{$term}%")))
@@ -46,11 +48,23 @@ class RepairController extends Controller
             'tecnico_id' => ['required', Rule::in($technicianIds)],
             'prioridad' => ['required', Rule::in(['baja', 'media', 'alta', 'critica'])],
             'falla_reportada' => ['required', 'string', 'max:2000'],
+            'evidencias' => ['nullable', 'array', 'max:5'],
+            'evidencias.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
         $repair = DB::transaction(function () use ($data, $request, $audit) {
-            $repair = Repair::query()->create($data + ['estado' => 'abierta', 'creado_por' => $request->user()->id]);
+            $repair = Repair::query()->create(collect($data)->except('evidencias')->all() + ['estado' => 'abierta', 'creado_por' => $request->user()->id]);
+            foreach ($request->file('evidencias', []) as $file) {
+                $path = $file->store("reparaciones/{$repair->id}", 'local');
+                $repair->evidences()->create([
+                    'ruta' => $path,
+                    'nombre_original' => $file->getClientOriginalName(),
+                    'mime' => $file->getMimeType(),
+                    'tamano' => $file->getSize(),
+                    'subido_por' => $request->user()->id,
+                ]);
+            }
             $repair->load('asset');
-            $audit->record($request->user(), 'crear', 'reparacion', $repair->id, after: $repair->toArray(), notify: false);
+            $audit->record($request->user(), 'crear', 'reparacion', $repair->id, after: $repair->toArray(), reason: $repair->evidences()->count().' evidencia(s) fotográfica(s) adjunta(s).', notify: false);
 
             $recipientIds = User::query()
                 ->where('activo', true)
@@ -109,6 +123,14 @@ class RepairController extends Controller
         }
 
         return redirect()->route('repairs.index')->with('success', 'Reparación cerrada; se notificó al Director técnico y al Superadministrador.');
+    }
+
+    public function evidence(Repair $repair, RepairEvidence $evidence)
+    {
+        Gate::authorize('consultar-inventario');
+        abort_unless($evidence->reparacion_id === $repair->id && Storage::disk('local')->exists($evidence->ruta), 404);
+
+        return Storage::disk('local')->response($evidence->ruta, $evidence->nombre_original, ['Content-Type' => $evidence->mime]);
     }
 
     private function technicians()
