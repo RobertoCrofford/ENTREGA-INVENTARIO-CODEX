@@ -4,16 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Services\AuditService;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use ZipArchive;
 
 class AssetImportController extends Controller
 {
     private const HEADERS = ['activo_fijo', 'sede_codigo', 'tipo_codigo', 'estado_codigo', 'uso', 'ubicacion_codigo', 'numero_serie', 'marca', 'modelo', 'costo_neto', 'responsable_nombre', 'responsable_email', 'responsable_departamento', 'observacion'];
+
+    private const AUDIT_HEADERS = ['Activofijo', 'Numerodeserie', 'ubicacion', 'Denominaciondelactivofijo', 'Ce.coste', 'Cantidad', 'Fe.capit.', 'ValorNeto', 'VidaRestante', 'Encargado'];
 
     public function index(): View
     {
@@ -46,15 +51,17 @@ class AssetImportController extends Controller
     public function preview(Request $request): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $request->validate(['archivo' => ['required', 'file', 'max:5120', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel']]);
+        $request->validate(['archivo' => ['required', 'file', 'max:5120', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']]);
         $file = $request->file('archivo');
+        $extension = strtolower($file->getClientOriginalExtension());
+        abort_unless(in_array($extension, ['csv', 'xlsx'], true), 422, 'Solo se admiten archivos CSV o Excel (.xlsx).');
         $hash = hash_file('sha256', $file->getRealPath());
 
         if (DB::table('importaciones')->where('tipo', 'activos')->where('archivo_sha256', $hash)->whereIn('estado', ['lista', 'procesando', 'completada'])->exists()) {
             return back()->with('warning', 'Este archivo ya fue revisado o importado. Revisa el historial para evitar duplicados.');
         }
 
-        $path = 'importaciones/'.$hash.'.csv';
+        $path = 'importaciones/'.$hash.'.'.$extension;
         Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
         $rows = $this->readRows(Storage::disk('local')->path($path));
         $importId = DB::table('importaciones')->insertGetId([
@@ -88,7 +95,7 @@ class AssetImportController extends Controller
     {
         Gate::authorize('gestionar-inventario');
         $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->firstOrFail();
-        $path = 'importaciones/'.$import->archivo_sha256.'.csv';
+        $path = 'importaciones/'.$import->archivo_sha256.'.'.$this->extension($import->archivo_nombre);
         abort_unless(Storage::disk('local')->exists($path), 422, 'No se encontró el archivo de importación.');
 
         $rows = $this->readRows(Storage::disk('local')->path($path));
@@ -136,6 +143,10 @@ class AssetImportController extends Controller
 
     private function readRows(string $path): array
     {
+        if ($this->extension($path) === 'xlsx') {
+            return $this->readAuditWorkbook($path);
+        }
+
         $handle = fopen($path, 'r');
         $headers = fgetcsv($handle) ?: [];
         $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', $headers[0] ?? '');
@@ -153,6 +164,124 @@ class AssetImportController extends Controller
         fclose($handle);
 
         return $rows;
+    }
+
+    private function readAuditWorkbook(string $path): array
+    {
+        abort_unless(class_exists(ZipArchive::class), 422, 'El servidor no tiene habilitada la lectura de archivos Excel.');
+        $zip = new ZipArchive;
+        abort_unless($zip->open($path) === true, 422, 'No se pudo leer el archivo Excel.');
+        $sharedStrings = $this->sharedStrings($zip);
+        $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        abort_unless($sheet !== false, 422, 'El archivo Excel no contiene una hoja de datos válida.');
+        $rows = $this->worksheetRows($sheet, $sharedStrings);
+        $zip->close();
+        abort_unless(count($rows) > 1, 422, 'El archivo Excel no contiene filas para importar.');
+        $headers = array_map(fn ($value) => $this->normalizeHeader($value), $rows[1] ?? []);
+        abort_unless($headers === self::AUDIT_HEADERS, 422, 'La cabecera del Excel no coincide con el formato de auditoría esperado.');
+
+        return collect($rows)->skip(1)->map(function (array $values, int $index): array {
+            $source = array_pad($values, count(self::AUDIT_HEADERS), '');
+
+            return $this->auditRow($source, $index + 2);
+        })->filter(fn (array $row) => $row['activo_fijo'] !== '')->values()->all();
+    }
+
+    private function sharedStrings(ZipArchive $zip): array
+    {
+        $xml = $zip->getFromName('xl/sharedStrings.xml');
+        if ($xml === false) {
+            return [];
+        }
+        $document = new DOMDocument;
+        $document->loadXML($xml);
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+
+        return collect($xpath->query('//s:si'))->map(fn ($item) => trim($xpath->evaluate('string(.)', $item)))->all();
+    }
+
+    private function worksheetRows(string $xml, array $sharedStrings): array
+    {
+        $document = new DOMDocument;
+        $document->loadXML($xml);
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $rows = [];
+        foreach ($xpath->query('//s:sheetData/s:row') as $row) {
+            $values = [];
+            foreach ($xpath->query('./s:c', $row) as $cell) {
+                preg_match('/[A-Z]+/', $cell->getAttribute('r'), $matches);
+                $column = $this->columnNumber($matches[0] ?? 'A');
+                $value = $xpath->evaluate('string(s:v)', $cell);
+                if ($cell->getAttribute('t') === 's') {
+                    $value = $sharedStrings[(int) $value] ?? '';
+                }
+                $values[$column] = $value;
+            }
+            if ($values) {
+                $line = array_values(array_replace(array_fill(1, 10, ''), $values));
+                while ($line && end($line) === '') {
+                    array_pop($line);
+                }
+                $rows[(int) $row->getAttribute('r')] = $line;
+            }
+        }
+
+        return $rows;
+    }
+
+    private function auditRow(array $source, int $line): array
+    {
+        [$fixed, $serial, $location, $designation, $costCenter, $quantity, $capitalizationDate, $netValue, $remainingLife, $manager] = $source;
+        $location = trim((string) $location);
+        $hasLocation = $location !== '' && strtoupper($location) !== '#N/A';
+        $type = $this->auditAssetType((string) $designation);
+        $observation = collect([
+            'Denominación: '.trim((string) $designation),
+            $costCenter !== '' ? 'Centro de costo: '.trim((string) $costCenter) : null,
+            $quantity !== '' ? 'Cantidad origen: '.trim((string) $quantity) : null,
+            $capitalizationDate !== '' ? 'Fecha de capitalización: '.$this->excelDate($capitalizationDate) : null,
+            $remainingLife !== '' ? 'Vida restante: '.trim((string) $remainingLife) : null,
+            $manager !== '' ? 'Encargado: '.trim((string) $manager) : null,
+        ])->filter()->implode(' | ');
+
+        return ['activo_fijo' => trim((string) $fixed), 'sede_codigo' => 'MAIPU', 'tipo_codigo' => $type, 'estado_codigo' => 'operativo', 'uso' => 'sin_definir', 'ubicacion_codigo' => $hasLocation ? 'AUD-'.strtoupper(preg_replace('/[^A-Za-z0-9]+/', '-', $location)) : '', 'numero_serie' => trim((string) $serial), 'marca' => strtok(trim((string) $designation), ' ') ?: '', 'modelo' => mb_substr(trim((string) $designation), 0, 80), 'costo_neto' => trim((string) $netValue), 'responsable_nombre' => '', 'responsable_email' => '', 'responsable_departamento' => '', 'observacion' => $observation, '_fila' => $line, '_crear_ubicacion' => $hasLocation, '_ubicacion_nombre' => $location];
+    }
+
+    private function auditAssetType(string $designation): string
+    {
+        $text = mb_strtolower($designation);
+
+        return str_contains($text, 'notebook') || str_contains($text, 'laptop') ? 'notebook' : (str_contains($text, 'monitor') || str_contains($text, 'pantalla') ? 'monitor' : (str_contains($text, 'pc') || str_contains($text, 'pro ') || str_contains($text, 'thinkcentre') ? 'pc' : (str_contains($text, 'switch') || str_contains($text, 'router') || str_contains($text, 'cable') || str_contains($text, 'adaptador') ? 'data' : 'otro')));
+    }
+
+    private function auditLocationId(int $siteId, string $code, string $name): int
+    {
+        return DB::table('ubicaciones')->where('sede_id', $siteId)->where('codigo', $code)->value('id') ?? DB::table('ubicaciones')->insertGetId(['sede_id' => $siteId, 'tipo' => 'sala', 'codigo' => $code, 'nombre' => $name, 'activo' => true, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    private function extension(string $filename): string
+    {
+        return strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    }
+
+    private function normalizeHeader(mixed $value): string
+    {
+        $value = trim((string) $value);
+        $value = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value) ?: $value;
+
+        return preg_replace('/[^A-Za-z0-9.]+/', '', $value);
+    }
+
+    private function columnNumber(string $letters): int
+    {
+        return array_reduce(str_split($letters), fn (int $number, string $letter) => $number * 26 + ord($letter) - 64, 0);
+    }
+
+    private function excelDate(mixed $value): string
+    {
+        return is_numeric($value) ? now()->setDate(1899, 12, 30)->addDays((int) $value)->toDateString() : trim((string) $value);
     }
 
     private function validateRows(array $rows): array
@@ -188,11 +317,11 @@ class AssetImportController extends Controller
             if (! $statuses->has(strtolower(trim($row['estado_codigo'])))) {
                 $add('estado_codigo', 'estado_invalido', 'El estado no existe o está inactivo.');
             }
-            if (! in_array(strtolower(trim($row['uso'])), ['administrativo', 'alumnos', 'docente', 'comun'], true)) {
-                $add('uso', 'uso_invalido', 'El uso debe ser administrativo, alumnos, docente o comun.');
+            if (! in_array(strtolower(trim($row['uso'])), ['administrativo', 'alumnos', 'docente', 'comun', 'sin_definir'], true)) {
+                $add('uso', 'uso_invalido', 'El uso debe ser administrativo, alumnos, docente, comun o sin_definir.');
             }
             $locationCode = trim($row['ubicacion_codigo']);
-            if ($locationCode !== '' && (! $locations->has($locationCode) || ($sites->get(trim($row['sede_codigo'])) && $locations->get($locationCode)->sede_id !== $sites->get(trim($row['sede_codigo']))))) {
+            if ($locationCode !== '' && empty($row['_crear_ubicacion']) && (! $locations->has($locationCode) || ($sites->get(trim($row['sede_codigo'])) && $locations->get($locationCode)->sede_id !== $sites->get(trim($row['sede_codigo']))))) {
                 $add('ubicacion_codigo', 'ubicacion_invalida', 'La ubicación no existe, está inactiva o pertenece a otra sede.');
             }
             if ($locationCode !== '' && (trim($row['responsable_nombre']) !== '' || trim($row['responsable_email']) !== '')) {
@@ -217,7 +346,7 @@ class AssetImportController extends Controller
         $siteId = DB::table('sedes')->where('codigo', trim($row['sede_codigo']))->value('id');
         $typeId = DB::table('tipos_activo')->where('codigo', strtolower(trim($row['tipo_codigo'])))->value('id');
         $statusId = DB::table('estados_activo')->where('codigo', strtolower(trim($row['estado_codigo'])))->value('id');
-        $locationId = trim($row['ubicacion_codigo']) === '' ? null : DB::table('ubicaciones')->where('codigo', trim($row['ubicacion_codigo']))->value('id');
+        $locationId = trim($row['ubicacion_codigo']) === '' ? null : ($row['_crear_ubicacion'] ?? false ? $this->auditLocationId($siteId, trim($row['ubicacion_codigo']), $row['_ubicacion_nombre']) : DB::table('ubicaciones')->where('codigo', trim($row['ubicacion_codigo']))->value('id'));
 
         return ['sede_id' => $siteId, 'tipo_activo_id' => $typeId, 'estado_activo_id' => $statusId, 'uso' => strtolower(trim($row['uso'])), 'ubicacion_actual_id' => $locationId, 'activo_fijo' => trim($row['activo_fijo']), 'numero_serie' => trim($row['numero_serie']) ?: null, 'marca' => trim($row['marca']) ?: null, 'modelo' => trim($row['modelo']) ?: null, 'costo_neto_actual' => trim($row['costo_neto']) ?: null, 'responsable_nombre' => trim($row['responsable_nombre']) ?: null, 'responsable_email' => trim($row['responsable_email']) ?: null, 'responsable_departamento' => trim($row['responsable_departamento']) ?: null, 'observacion' => trim($row['observacion']) ?: null, 'creado_por' => $userId];
     }
