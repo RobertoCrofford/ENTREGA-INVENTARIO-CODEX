@@ -16,6 +16,13 @@ use Illuminate\View\View;
 
 class AuditLogController extends Controller
 {
+    public function generateForm(): RedirectResponse
+    {
+        Gate::authorize('generar-bitacora');
+
+        return redirect()->route('audit-logs.index');
+    }
+
     public function index(): View
     {
         Gate::authorize('generar-bitacora');

@@ -46,6 +46,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('notifications/{notificationId}/attend', [NotificationController::class, 'attend'])->name('notifications.attend');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        Route::get('audit-logs/generate', [AuditLogController::class, 'generateForm'])->name('audit-logs.generate.form');
         Route::post('audit-logs/generate', [AuditLogController::class, 'generate'])->name('audit-logs.generate');
         Route::get('audit-logs/{archiveId}/download', [AuditLogController::class, 'download'])->name('audit-logs.download');
         Route::get('scan', [ScanController::class, 'index'])->name('scan.index');
