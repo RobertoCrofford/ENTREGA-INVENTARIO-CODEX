@@ -29,13 +29,53 @@ class AuditLogController extends Controller
         return redirect()->route('audit-logs.index');
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
         Gate::authorize('generar-bitacora');
 
-        $archives = DB::table('archivos_auditoria')->orderByDesc('id')->paginate(20);
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'desde' => ['nullable', 'date'],
+            'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
+            'usuario' => ['nullable', 'integer', 'exists:users,id'],
+            'accion' => ['nullable', 'string', 'max:80'],
+            'entidad' => ['nullable', 'string', 'max:80'],
+        ]);
 
-        return view('audit-logs.index', compact('archives'));
+        $entriesQuery = DB::table('bitacora')
+            ->leftJoin('users', 'users.id', '=', 'bitacora.usuario_id')
+            ->select('bitacora.*', 'users.name as usuario_nombre', 'users.username as usuario_username');
+
+        if (! empty($filters['q'])) {
+            $search = trim($filters['q']);
+            $entriesQuery->where(function ($query) use ($search) {
+                $query->where('bitacora.accion', 'like', "%{$search}%")
+                    ->orWhere('bitacora.entidad_tipo', 'like', "%{$search}%")
+                    ->orWhere('bitacora.entidad_id', 'like', "%{$search}%")
+                    ->orWhere('bitacora.motivo', 'like', "%{$search}%")
+                    ->orWhere('users.name', 'like', "%{$search}%")
+                    ->orWhere('users.username', 'like', "%{$search}%");
+            });
+        }
+        if (! empty($filters['desde'])) {
+            $entriesQuery->where('bitacora.creado_at', '>=', CarbonImmutable::parse($filters['desde'], config('app.timezone'))->startOfDay()->utc());
+        }
+        if (! empty($filters['hasta'])) {
+            $entriesQuery->where('bitacora.creado_at', '<=', CarbonImmutable::parse($filters['hasta'], config('app.timezone'))->endOfDay()->utc());
+        }
+        foreach (['usuario' => 'bitacora.usuario_id', 'accion' => 'bitacora.accion', 'entidad' => 'bitacora.entidad_tipo'] as $filter => $column) {
+            if (! empty($filters[$filter])) {
+                $entriesQuery->where($column, $filters[$filter]);
+            }
+        }
+
+        $entries = $entriesQuery->orderByDesc('bitacora.id')->paginate(25, ['*'], 'eventos')->withQueryString();
+        $archives = DB::table('archivos_auditoria')->orderByDesc('id')->paginate(20);
+        $users = DB::table('users')->where('activo', true)->orderBy('name')->get(['id', 'name', 'username']);
+        $actions = DB::table('bitacora')->distinct()->orderBy('accion')->pluck('accion');
+        $entities = DB::table('bitacora')->distinct()->orderBy('entidad_tipo')->pluck('entidad_tipo');
+
+        return view('audit-logs.index', compact('archives', 'entries', 'users', 'actions', 'entities'));
     }
 
     public function generate(Request $request, AuditService $audit): RedirectResponse
