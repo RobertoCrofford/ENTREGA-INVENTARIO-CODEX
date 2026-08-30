@@ -52,9 +52,13 @@ class AssetController extends Controller
     public function store(Request $request, AuditService $audit): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $asset = DB::transaction(fn () => Asset::create($this->data($request) + ['codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.asset')), 'creado_por' => $request->user()->id]));
-        DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'alta', 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_destino_id' => $asset->ubicacion_actual_id, 'motivo' => 'Alta de activo', 'ejecutado_por' => $request->user()->id, 'ocurrido_at' => now()]);
-        $audit->record($request->user(), 'crear', 'activo', $asset->id, after: $asset->toArray());
+        $asset = DB::transaction(function () use ($request, $audit) {
+            $asset = Asset::create($this->data($request) + ['codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.asset')), 'creado_por' => $request->user()->id]);
+            DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'alta', 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_destino_id' => $asset->ubicacion_actual_id, 'motivo' => 'Alta de activo', 'ejecutado_por' => $request->user()->id, 'ocurrido_at' => now()]);
+            $audit->record($request->user(), 'crear', 'activo', $asset->id, after: $asset->toArray());
+
+            return $asset;
+        });
 
         return redirect()->route('assets.index')->with('success', 'Activo registrado.');
     }

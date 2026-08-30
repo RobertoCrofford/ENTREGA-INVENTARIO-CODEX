@@ -87,15 +87,20 @@ class AssetImportController extends Controller
     public function confirm(Request $request, int $import, AuditService $audit): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->lockForUpdate()->firstOrFail();
-        abort_unless($import->estado === 'lista', 422, 'Esta importación ya fue procesada.');
+        $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->firstOrFail();
         $path = 'importaciones/'.$import->archivo_sha256.'.csv';
         abort_unless(Storage::disk('local')->exists($path), 422, 'No se encontró el archivo de importación.');
 
         $rows = $this->readRows(Storage::disk('local')->path($path));
-        $errors = $this->validateRows($rows);
-        $invalid = collect($errors)->pluck('fila')->unique()->flip();
-        DB::transaction(function () use ($import, $rows, $invalid, $request, $audit) {
+        DB::transaction(function () use ($import, $rows, $request, $audit) {
+            $import = DB::table('importaciones')->where('id', $import->id)->where('tipo', 'activos')->lockForUpdate()->firstOrFail();
+            abort_unless($import->estado === 'lista', 422, 'Esta importación ya fue procesada.');
+            $errors = $this->validateRows($rows);
+            $invalid = collect($errors)->pluck('fila')->unique()->flip();
+            DB::table('errores_importacion')->where('importacion_id', $import->id)->delete();
+            foreach ($errors as $error) {
+                DB::table('errores_importacion')->insert(['importacion_id' => $import->id] + $error);
+            }
             DB::table('importaciones')->where('id', $import->id)->update(['estado' => 'procesando']);
             foreach ($rows as $row) {
                 if ($invalid->has($row['_fila'])) {
@@ -105,7 +110,8 @@ class AssetImportController extends Controller
                 DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'alta', 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_destino_id' => $asset->ubicacion_actual_id, 'motivo' => 'Importación masiva', 'ejecutado_por' => $request->user()->id, 'ocurrido_at' => now()]);
                 $audit->record($request->user(), 'importar', 'activo', $asset->id, after: $asset->toArray(), reason: 'Importación #'.$import->id, notify: false);
             }
-            DB::table('importaciones')->where('id', $import->id)->update(['estado' => 'completada', 'finalizado_at' => now()]);
+            $invalidRows = $invalid->count();
+            DB::table('importaciones')->where('id', $import->id)->update(['estado' => 'completada', 'filas_exitosas' => count($rows) - $invalidRows, 'filas_error' => $invalidRows, 'finalizado_at' => now()]);
         });
 
         return redirect()->route('imports.assets.show', $import->id)->with('success', 'Importación completada.');
@@ -141,6 +147,7 @@ class AssetImportController extends Controller
             if ($values === [null] || $values === []) {
                 continue;
             }
+            abort_unless(count($values) <= count(self::HEADERS), 422, "La fila {$line} tiene más columnas que la plantilla.");
             $rows[] = array_combine(self::HEADERS, array_pad($values, count(self::HEADERS), '')) + ['_fila' => $line];
         }
         fclose($handle);
