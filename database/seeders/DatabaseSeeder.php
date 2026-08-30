@@ -50,6 +50,10 @@ class DatabaseSeeder extends Seeder
             ['Periféricos', 'Teclados, mouse, monitores y accesorios.'],
             ['Redes y conectividad', 'Switches, routers, puntos de acceso y cableado.'],
             ['Audio y video', 'Proyectores, cámaras, parlantes y dispositivos audiovisuales.'],
+            ['Switch', 'Equipos de conmutación para redes institucionales.'],
+            ['Data', 'Cables, conectores y accesorios de datos.'],
+            ['Micrófonos', 'Micrófonos y accesorios de audio.'],
+            ['Adaptadores', 'Adaptadores eléctricos, de video, audio y conectividad.'],
             ['Suministros', 'Insumos y consumibles para soporte técnico.'],
             ['Otros', 'Artículos que no pertenecen a las categorías anteriores.'],
         ] as [$nombre, $descripcion]) {
