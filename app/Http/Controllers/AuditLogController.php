@@ -68,9 +68,9 @@ class AuditLogController extends Controller
         } else {
             $stream = fopen('php://temp', 'r+');
             fwrite($stream, "\xEF\xBB\xBF");
-            fputcsv($stream, ['ID', 'Fecha UTC', 'Usuario', 'Acción', 'Entidad', 'ID entidad', 'Motivo', 'Resultado', 'IP', 'Antes', 'Después']);
+            fputcsv($stream, ['ID', 'Fecha UTC', 'Usuario', 'Acción', 'Entidad', 'ID entidad', 'Motivo', 'Resultado', 'IP', 'Antes', 'Después'], ',', '"', '\\');
             foreach ($entries as $entry) {
-                fputcsv($stream, [$entry->id, $entry->creado_at, $entry->usuario_nombre ? $entry->usuario_nombre.' ('.$entry->usuario_username.')' : 'Sistema', $entry->accion, $entry->entidad_tipo, $entry->entidad_id, $entry->motivo, $entry->resultado, $entry->ip, $entry->antes_json, $entry->despues_json]);
+                fputcsv($stream, [$entry->id, $entry->creado_at, $entry->usuario_nombre ? $entry->usuario_nombre.' ('.$entry->usuario_username.')' : 'Sistema', $entry->accion, $entry->entidad_tipo, $entry->entidad_id, $entry->motivo, $entry->resultado, $entry->ip, $entry->antes_json, $entry->despues_json], ',', '"', '\\');
             }
             rewind($stream);
             $content = stream_get_contents($stream);
