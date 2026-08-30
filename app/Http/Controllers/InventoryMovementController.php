@@ -33,13 +33,16 @@ class InventoryMovementController extends Controller
     {
         Gate::authorize('gestionar-inventario');
 
-        return view('movements.form', ['products' => Product::query()->with('categoria')->where('activo', true)->orderBy('nombre')->get(), 'warehouses' => DB::table('ubicaciones')->where('tipo', 'bodega')->where('activo', true)->orderBy('nombre')->get()]);
+        return view('movements.form', [
+            'products' => Product::query()->with('categoria')->where('activo', true)->orderBy('nombre')->get(),
+            'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('tipo')->orderBy('nombre')->get(),
+        ]);
     }
 
     public function store(Request $request, InventoryMovementService $service): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $data = $request->validate(['tipo' => ['required', Rule::in(['entrada', 'salida', 'devolucion', 'traslado', 'ajuste', 'baja'])], 'producto_id' => ['required', 'exists:productos,id'], 'cantidad' => ['required', 'integer', 'min:1', 'max:100000'], 'origen_id' => ['nullable', 'exists:ubicaciones,id'], 'destino_id' => ['nullable', 'exists:ubicaciones,id'], 'motivo' => ['required', 'string', 'max:1000'], 'observacion' => ['nullable', 'string', 'max:2000'], 'receptor_tipo' => ['nullable', Rule::in(['funcionario', 'sala', 'unidad', 'consumo_tecnico'])], 'receptor_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'receptor_email' => ['nullable', 'email', 'max:255'], 'receptor_departamento' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'idempotency_key' => ['required', 'uuid']]);
+        $data = $request->validate(['tipo' => ['required', Rule::in(['entrada', 'salida', 'devolucion', 'traslado', 'ajuste', 'baja'])], 'producto_id' => ['required', 'exists:productos,id'], 'cantidad' => ['required', 'integer', 'min:1', 'max:100000'], 'origen_id' => ['nullable', 'exists:ubicaciones,id'], 'destino_id' => ['nullable', 'exists:ubicaciones,id'], 'observacion' => ['nullable', 'string', 'max:2000'], 'idempotency_key' => ['required', 'uuid']]);
         $id = $service->createAndPublish($data, $request->user());
 
         return redirect()->route('movements.index')->with('success', "Movimiento #{$id} publicado.");

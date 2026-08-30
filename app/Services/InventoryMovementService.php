@@ -24,15 +24,16 @@ class InventoryMovementService
             $origin = $data['origen_id'] ?? null;
             $destination = $data['destino_id'] ?? null;
             foreach (collect([$origin, $destination])->filter()->unique() as $locationId) {
-                if (DB::table('ubicaciones')->where('id', $locationId)->where('activo', true)->value('tipo') !== 'bodega') {
-                    throw ValidationException::withMessages(['ubicacion' => 'El origen y destino deben ser bodegas activas.']);
+                if (! DB::table('ubicaciones')->where('id', $locationId)->where('activo', true)->exists()) {
+                    throw ValidationException::withMessages(['ubicacion' => 'El origen y destino deben ser ubicaciones activas.']);
                 }
             }
-            $id = DB::table('movimientos_inventario')->insertGetId(['folio' => 'MOV-'.now()->format('YmdHis').'-'.str_pad((string) (DB::table('movimientos_inventario')->max('id') + 1), 6, '0', STR_PAD_LEFT), 'tipo' => $data['tipo'], 'estado' => 'borrador', 'origen_id' => $origin, 'destino_id' => $destination, 'motivo' => $data['motivo'], 'observacion' => $data['observacion'] ?? null, 'receptor_tipo' => $data['receptor_tipo'] ?? null, 'receptor_nombre' => $data['receptor_nombre'] ?? null, 'receptor_email' => $data['receptor_email'] ?? null, 'receptor_departamento' => $data['receptor_departamento'] ?? null, 'idempotency_key' => $key, 'creado_por' => $actor->id, 'created_at' => now(), 'updated_at' => now()]);
+            $reason = ucfirst($data['tipo']).' registrada desde el sistema.';
+            $id = DB::table('movimientos_inventario')->insertGetId(['folio' => 'MOV-'.now()->format('YmdHis').'-'.str_pad((string) (DB::table('movimientos_inventario')->max('id') + 1), 6, '0', STR_PAD_LEFT), 'tipo' => $data['tipo'], 'estado' => 'borrador', 'origen_id' => $origin, 'destino_id' => $destination, 'motivo' => $reason, 'observacion' => $data['observacion'] ?? null, 'receptor_tipo' => null, 'receptor_nombre' => null, 'receptor_email' => null, 'receptor_departamento' => null, 'idempotency_key' => $key, 'creado_por' => $actor->id, 'created_at' => now(), 'updated_at' => now()]);
             DB::table('movimientos_detalle')->insert(['movimiento_id' => $id, 'producto_id' => $product->id, 'cantidad' => $data['cantidad'], 'costo_neto_snapshot' => $product->costo_neto_actual]);
             $this->apply($data['tipo'], $product->id, $data['cantidad'], $origin, $destination);
             DB::table('movimientos_inventario')->where('id', $id)->update(['estado' => 'publicado', 'publicado_por' => $actor->id, 'publicado_at' => now(), 'updated_at' => now()]);
-            app(AuditService::class)->record($actor, 'publicar', 'movimiento_inventario', $id, reason: $data['motivo']);
+            app(AuditService::class)->record($actor, 'publicar', 'movimiento_inventario', $id, reason: $reason);
 
             return $id;
         });
@@ -71,19 +72,13 @@ class InventoryMovementService
             throw ValidationException::withMessages(['cantidad' => 'La cantidad debe ser mayor que cero.']);
         }
         if (in_array($data['tipo'], ['entrada', 'devolucion'], true) && empty($data['destino_id'])) {
-            throw ValidationException::withMessages(['destino_id' => 'Se requiere bodega destino.']);
+            throw ValidationException::withMessages(['destino_id' => 'Se requiere una ubicación de destino.']);
         }
         if (in_array($data['tipo'], ['salida', 'traslado', 'baja'], true) && empty($data['origen_id'])) {
-            throw ValidationException::withMessages(['origen_id' => 'Se requiere bodega origen.']);
+            throw ValidationException::withMessages(['origen_id' => 'Se requiere una ubicación de origen.']);
         }
         if ($data['tipo'] === 'traslado' && $data['origen_id'] === $data['destino_id']) {
             throw ValidationException::withMessages(['destino_id' => 'El destino debe ser diferente del origen.']);
-        }
-        if ($data['tipo'] === 'salida' && (empty($data['receptor_tipo']) || empty($data['receptor_nombre']))) {
-            throw ValidationException::withMessages(['receptor_nombre' => 'La salida requiere receptor.']);
-        }
-        if (($data['receptor_tipo'] ?? null) === 'funcionario' && empty($data['receptor_email'])) {
-            throw ValidationException::withMessages(['receptor_email' => 'El funcionario requiere correo.']);
         }
     }
 }
