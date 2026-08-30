@@ -16,6 +16,12 @@ use Illuminate\View\View;
 
 class AuditLogController extends Controller
 {
+    /**
+     * Rendering a large audit trail as PDF can exhaust the PHP-FPM worker.
+     * CSV remains suitable for complete, long periods.
+     */
+    private const PDF_MAX_ENTRIES = 250;
+
     public function generateForm(): RedirectResponse
     {
         Gate::authorize('generar-bitacora');
@@ -49,9 +55,15 @@ class AuditLogController extends Controller
             ->orderBy('bitacora.id')
             ->select('bitacora.*', 'users.name as usuario_nombre', 'users.username as usuario_username')
             ->get();
-        $filename = 'bitacora_'.$from->format('Ymd').'_'.$to->format('Ymd').'.'.$data['formato'];
+        $format = $data['formato'];
+        $pdfWasChangedToCsv = $format === 'pdf' && $entries->count() > self::PDF_MAX_ENTRIES;
+        if ($pdfWasChangedToCsv) {
+            $format = 'csv';
+        }
+
+        $filename = 'bitacora_'.$from->format('Ymd').'_'.$to->format('Ymd').'.'.$format;
         $path = 'auditoria/'.$filename;
-        if ($data['formato'] === 'pdf') {
+        if ($format === 'pdf') {
             $content = Pdf::loadView('pdf.audit-log', compact('entries', 'from', 'to'))->setPaper('a4', 'landscape')->output();
         } else {
             $stream = fopen('php://temp', 'r+');
@@ -75,7 +87,12 @@ class AuditLogController extends Controller
         }
         $audit->record($request->user(), 'generar', 'archivo_auditoria', $archiveId, reason: "Bitácora {$data['desde']} a {$data['hasta']}.");
 
-        return redirect()->route('audit-logs.index')->with('success', "Bitácora {$filename} generada correctamente. Ya puedes descargarla desde el historial.");
+        $message = "Bitácora {$filename} generada correctamente. Ya puedes descargarla desde el historial.";
+        if ($pdfWasChangedToCsv) {
+            $message .= ' Se generó en CSV porque el período contiene más de '.self::PDF_MAX_ENTRIES.' eventos; así se evita que el sistema se caiga y se conservan todos los datos.';
+        }
+
+        return redirect()->route('audit-logs.index')->with('success', $message);
     }
 
     public function download(int $archiveId)
