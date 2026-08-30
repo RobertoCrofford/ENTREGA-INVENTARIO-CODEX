@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -21,6 +22,12 @@ class AuditLogController extends Controller
      * CSV remains suitable for complete, long periods.
      */
     private const PDF_MAX_ENTRIES = 250;
+
+    private function defaultArchiveName(CarbonImmutable $from, CarbonImmutable $to): string
+    {
+        return 'Bitácora del '.$from->locale('es')->translatedFormat('d \\d\\e F \\d\\e Y')
+            .' al '.$to->locale('es')->translatedFormat('d \\d\\e F \\d\\e Y');
+    }
 
     public function generateForm(): RedirectResponse
     {
@@ -81,7 +88,12 @@ class AuditLogController extends Controller
     public function generate(Request $request, AuditService $audit): RedirectResponse
     {
         Gate::authorize('generar-bitacora');
-        $data = $request->validate(['desde' => ['required', 'date'], 'hasta' => ['required', 'date', 'after_or_equal:desde'], 'formato' => ['required', Rule::in(['csv', 'pdf'])]]);
+        $data = $request->validate([
+            'nombre' => ['nullable', 'string', 'max:120'],
+            'desde' => ['required', 'date'],
+            'hasta' => ['required', 'date', 'after_or_equal:desde'],
+            'formato' => ['required', Rule::in(['csv', 'pdf'])],
+        ]);
         $from = CarbonImmutable::parse($data['desde'], config('app.timezone'))->startOfDay()->utc();
         $to = CarbonImmutable::parse($data['hasta'], config('app.timezone'))->endOfDay()->utc();
 
@@ -103,6 +115,7 @@ class AuditLogController extends Controller
 
         $filename = 'bitacora_'.$from->format('Ymd').'_'.$to->format('Ymd').'.'.$format;
         $path = 'auditoria/'.$filename;
+        $archiveName = trim($data['nombre'] ?? '') ?: $this->defaultArchiveName($from, $to);
         if ($format === 'pdf') {
             $content = Pdf::loadView('pdf.audit-log', compact('entries', 'from', 'to'))->setPaper('a4', 'landscape')->output();
         } else {
@@ -118,7 +131,7 @@ class AuditLogController extends Controller
         }
         Storage::disk('local')->put($path, $content);
         $archiveId = DB::table('archivos_auditoria')->insertGetId([
-            'periodo_desde' => $from, 'periodo_hasta' => $to, 'ruta' => $path,
+            'periodo_desde' => $from, 'periodo_hasta' => $to, 'ruta' => $path, 'nombre' => $archiveName,
             'sha256' => hash_file('sha256', Storage::disk('local')->path($path)),
             'creado_por' => $request->user()->id, 'creado_at' => now(),
         ]);
@@ -127,7 +140,7 @@ class AuditLogController extends Controller
         }
         $audit->record($request->user(), 'generar', 'archivo_auditoria', $archiveId, reason: "Bitácora {$data['desde']} a {$data['hasta']}.");
 
-        $message = "Bitácora {$filename} generada correctamente. Ya puedes descargarla desde el historial.";
+        $message = "{$archiveName} generada correctamente. Ya puedes descargarla desde el historial.";
         if ($pdfWasChangedToCsv) {
             $message .= ' Se generó en CSV porque el período contiene más de '.self::PDF_MAX_ENTRIES.' eventos; así se evita que el sistema se caiga y se conservan todos los datos.';
         }
@@ -141,6 +154,9 @@ class AuditLogController extends Controller
         $archive = DB::table('archivos_auditoria')->find($archiveId);
         abort_unless($archive && Storage::disk('local')->exists($archive->ruta), 404);
 
-        return Storage::disk('local')->download($archive->ruta, basename($archive->ruta));
+        $extension = pathinfo($archive->ruta, PATHINFO_EXTENSION);
+        $downloadName = ($archive->nombre ? Str::slug($archive->nombre) : pathinfo($archive->ruta, PATHINFO_FILENAME)).'.'.$extension;
+
+        return Storage::disk('local')->download($archive->ruta, $downloadName);
     }
 }
