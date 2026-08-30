@@ -33,7 +33,7 @@ class InventoryMovementController extends Controller
     {
         Gate::authorize('gestionar-inventario');
 
-        return view('movements.form', ['products' => Product::where('activo', true)->orderBy('nombre')->get(), 'warehouses' => DB::table('ubicaciones')->where('tipo', 'bodega')->where('activo', true)->orderBy('nombre')->get()]);
+        return view('movements.form', ['products' => Product::query()->with('categoria')->where('activo', true)->orderBy('nombre')->get(), 'warehouses' => DB::table('ubicaciones')->where('tipo', 'bodega')->where('activo', true)->orderBy('nombre')->get()]);
     }
 
     public function store(Request $request, InventoryMovementService $service): RedirectResponse
