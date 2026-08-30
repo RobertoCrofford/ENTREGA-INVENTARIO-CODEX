@@ -14,7 +14,7 @@
     @forelse($movements as $movement)
         <tr>
             <td>{{ $movement->folio }}</td>
-            <td>{{ $movement->producto_nombre }}<div class="small text-body-secondary">{{ $movement->codigo_interno }} · Cantidad: {{ $movement->cantidad }}</div></td>
+            <td>{{ $movement->item_nombre ?: 'Activo fijo' }}<div class="small text-body-secondary">{{ $movement->item_codigo }} · Cantidad: {{ $movement->cantidad }}</div></td>
             <td>{{ ucfirst($movement->tipo) }}<div class="small text-body-secondary">{{ ucfirst($movement->estado) }}</div></td>
             <td>{{ $movement->publicado_por_nombre ?? $movement->creado_por_nombre }}</td>
             <td>{{ $movement->motivo }}</td>

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\Asset;
 use App\Models\Stock;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,9 @@ class InventoryMovementService
                 return $existing->id;
             }
             $this->validateShape($data);
+            if (($data['item_type'] ?? 'producto') === 'activo') {
+                return $this->transferAsset($data, $actor, $key);
+            }
             $product = Product::query()->where('activo', true)->findOrFail($data['producto_id']);
             $origin = $data['origen_id'] ?? null;
             $destination = $data['destino_id'] ?? null;
@@ -56,6 +60,45 @@ class InventoryMovementService
         }
     }
 
+    /** @param array<string, mixed> $data */
+    private function transferAsset(array $data, User $actor, string $key): int
+    {
+        if ($data['tipo'] !== 'traslado') {
+            throw ValidationException::withMessages(['tipo' => 'Un activo fijo solo se puede registrar como traslado.']);
+        }
+        if (empty($data['activo_id'])) {
+            throw ValidationException::withMessages(['activo_id' => 'Selecciona un activo fijo.']);
+        }
+        if (empty($data['destino_id'])) {
+            throw ValidationException::withMessages(['destino_id' => 'Selecciona la ubicación de destino del activo.']);
+        }
+
+        $asset = Asset::query()->with('status')->lockForUpdate()->findOrFail($data['activo_id']);
+        if ($asset->status?->codigo === 'dado_baja') {
+            throw ValidationException::withMessages(['activo_id' => 'Un activo dado de baja no se puede trasladar.']);
+        }
+        $origin = $asset->ubicacion_actual_id;
+        if (! $origin) {
+            throw ValidationException::withMessages(['activo_id' => 'El activo no tiene una ubicación actual registrada.']);
+        }
+        if ((int) $origin === (int) $data['destino_id']) {
+            throw ValidationException::withMessages(['destino_id' => 'La ubicación de destino debe ser diferente de la actual.']);
+        }
+        if (! DB::table('ubicaciones')->where('id', $data['destino_id'])->where('activo', true)->exists()) {
+            throw ValidationException::withMessages(['destino_id' => 'La ubicación de destino debe estar activa.']);
+        }
+
+        $reason = 'Traslado de activo fijo registrado desde el sistema.';
+        $id = DB::table('movimientos_inventario')->insertGetId(['folio' => 'MOV-'.now()->format('YmdHis').'-'.str_pad((string) (DB::table('movimientos_inventario')->max('id') + 1), 6, '0', STR_PAD_LEFT), 'tipo' => 'traslado', 'estado' => 'borrador', 'origen_id' => $origin, 'destino_id' => $data['destino_id'], 'motivo' => $reason, 'observacion' => $data['observacion'] ?? null, 'idempotency_key' => $key, 'creado_por' => $actor->id, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('movimientos_detalle')->insert(['movimiento_id' => $id, 'activo_id' => $asset->id, 'cantidad' => 1, 'costo_neto_snapshot' => $asset->costo_neto_actual ?? 0]);
+        $asset->update(['ubicacion_actual_id' => $data['destino_id']]);
+        DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'traslado', 'estado_origen_id' => $asset->estado_activo_id, 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_origen_id' => $origin, 'ubicacion_destino_id' => $data['destino_id'], 'motivo' => $reason, 'ejecutado_por' => $actor->id, 'ocurrido_at' => now()]);
+        DB::table('movimientos_inventario')->where('id', $id)->update(['estado' => 'publicado', 'publicado_por' => $actor->id, 'publicado_at' => now(), 'updated_at' => now()]);
+        app(AuditService::class)->record($actor, 'trasladar', 'activo', $asset->id, reason: $reason);
+
+        return $id;
+    }
+
     private function change(?Stock $stock, int $delta, ?int $product = null, ?int $warehouse = null): void
     {
         if (! $stock) {
@@ -68,6 +111,12 @@ class InventoryMovementService
     /** @param array<string, mixed> $data */
     private function validateShape(array $data): void
     {
+        if (($data['item_type'] ?? 'producto') === 'activo') {
+            return;
+        }
+        if (empty($data['producto_id'])) {
+            throw ValidationException::withMessages(['producto_id' => 'Selecciona un producto.']);
+        }
         if (($data['cantidad'] ?? 0) < 1) {
             throw ValidationException::withMessages(['cantidad' => 'La cantidad debe ser mayor que cero.']);
         }
