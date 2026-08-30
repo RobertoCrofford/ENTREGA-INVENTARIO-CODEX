@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserIsActive
 {
-    public function handle(Request $request, Closure $next, SessionLimitService $sessionLimit): Response
+    public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
@@ -23,7 +23,7 @@ class EnsureUserIsActive
         }
 
         if ($user) {
-            $sessionLimit->enforce($user->id, $request->session()->getId());
+            app(SessionLimitService::class)->enforce($user->id, $request->session()->getId());
         }
 
         return $next($request);
