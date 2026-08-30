@@ -9,8 +9,8 @@ use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -47,10 +47,38 @@ class RepairController extends Controller
             'prioridad' => ['required', Rule::in(['baja', 'media', 'alta', 'critica'])],
             'falla_reportada' => ['required', 'string', 'max:2000'],
         ]);
-        $repair = Repair::query()->create($data + ['estado' => 'abierta', 'creado_por' => $request->user()->id]);
-        $audit->record($request->user(), 'crear', 'reparacion', $repair->id, after: $repair->toArray());
+        $repair = DB::transaction(function () use ($data, $request, $audit) {
+            $repair = Repair::query()->create($data + ['estado' => 'abierta', 'creado_por' => $request->user()->id]);
+            $repair->load('asset');
+            $audit->record($request->user(), 'crear', 'reparacion', $repair->id, after: $repair->toArray(), notify: false);
 
-        return redirect()->route('repairs.index')->with('success', 'Reparación registrada.');
+            $recipientIds = User::query()
+                ->where('activo', true)
+                ->where(function ($query) use ($repair, $request) {
+                    $query->where('id', $repair->tecnico_id)
+                        ->orWhere('id', $request->user()->id)
+                        ->orWhereHas('rol', fn ($roles) => $roles->whereIn('codigo', [Role::DIRECTOR_TECNICO, Role::SUPERADMIN]));
+                })
+                ->pluck('id')
+                ->unique();
+
+            foreach ($recipientIds as $recipientId) {
+                $message = $recipientId === $repair->tecnico_id
+                    ? "Se te asignó la reparación del activo {$repair->asset->activo_fijo}."
+                    : "{$request->user()->name} registró una reparación para el activo {$repair->asset->activo_fijo}.";
+                DB::table('notificaciones')->insert([
+                    'usuario_id' => $recipientId,
+                    'titulo' => 'Reparación registrada',
+                    'mensaje' => $message,
+                    'url' => route('repairs.index'),
+                    'creado_at' => now(),
+                ]);
+            }
+
+            return $repair;
+        });
+
+        return redirect()->route('repairs.index')->with('success', 'Reparación registrada y notificada.');
     }
 
     public function complete(Request $request, Repair $repair, AuditService $audit): RedirectResponse
@@ -88,4 +116,3 @@ class RepairController extends Controller
         return User::query()->where('activo', true)->whereHas('rol', fn ($roles) => $roles->whereIn('codigo', [Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN]))->orderBy('name')->get();
     }
 }
-
