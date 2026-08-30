@@ -32,6 +32,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/dashboard', function () {
             return view('dashboard', [
                 'stockAgotado' => Schema::hasTable('existencias') ? DB::table('existencias')->where('activo', true)->where('cantidad', 0)->count() : 0,
+                'totalActivos' => Schema::hasTable('activos') ? DB::table('activos')->count() : 0,
+                'activosOperativos' => Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'operativo')->count() : 0,
+                'activosSinClasificar' => Schema::hasTable('activos') ? DB::table('activos')->where('uso', 'sin_definir')->count() : 0,
                 'activosReparacion' => Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'en_reparacion')->count() : 0,
                 'solicitudesPendientes' => Schema::hasTable('solicitudes_baja_activo') ? DB::table('solicitudes_baja_activo')->where('estado', 'pendiente')->count() : 0,
                 'movimientosRecientes' => Schema::hasTable('movimientos_inventario') ? DB::table('movimientos_inventario')->where('estado', 'publicado')->orderByDesc('publicado_at')->limit(5)->get() : collect(),

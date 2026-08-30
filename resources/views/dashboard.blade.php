@@ -6,6 +6,9 @@
     <span class="trace-badge"><i class="bi bi-shield-check"></i>Operación trazable</span>
 </section>
 <section class="row g-3 dashboard-stats mb-4">
+    <div class="col-sm-6 col-xl-3"><article class="stat-card"><i class="bi bi-pc-display"></i><span>Activos registrados</span><strong>{{ $totalActivos ?? 0 }}</strong></article></div>
+    <div class="col-sm-6 col-xl-3"><article class="stat-card"><i class="bi bi-check2-circle"></i><span>Activos operativos</span><strong>{{ $activosOperativos ?? 0 }}</strong></article></div>
+    <div class="col-sm-6 col-xl-3"><article class="stat-card"><i class="bi bi-tags"></i><span>Por clasificar</span><strong>{{ $activosSinClasificar ?? 0 }}</strong></article></div>
     <div class="col-sm-6 col-xl-3"><article class="stat-card"><i class="bi bi-box-seam"></i><span>Stock agotado</span><strong>{{ $stockAgotado ?? 0 }}</strong></article></div>
     <div class="col-sm-6 col-xl-3"><article class="stat-card"><i class="bi bi-tools"></i><span>En reparación</span><strong>{{ $activosReparacion ?? 0 }}</strong></article></div>
     <div class="col-sm-6 col-xl-3"><article class="stat-card"><i class="bi bi-clipboard-x"></i><span>Bajas pendientes</span><strong>{{ $solicitudesPendientes ?? 0 }}</strong></article></div>
