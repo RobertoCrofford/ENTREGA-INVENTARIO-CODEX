@@ -13,7 +13,7 @@ use Illuminate\View\View;
 
 class AssetImportController extends Controller
 {
-    private const HEADERS = ['activo_fijo', 'sede_codigo', 'tipo_codigo', 'estado_codigo', 'ubicacion_codigo', 'numero_serie', 'marca', 'modelo', 'costo_neto', 'responsable_nombre', 'responsable_email', 'responsable_departamento', 'observacion'];
+    private const HEADERS = ['activo_fijo', 'sede_codigo', 'tipo_codigo', 'estado_codigo', 'uso', 'ubicacion_codigo', 'numero_serie', 'marca', 'modelo', 'costo_neto', 'responsable_nombre', 'responsable_email', 'responsable_departamento', 'observacion'];
 
     public function index(): View
     {
@@ -35,7 +35,7 @@ class AssetImportController extends Controller
 
         $stream = fopen('php://temp', 'r+');
         fputcsv($stream, self::HEADERS);
-        fputcsv($stream, ['AF-2026-001', 'MAIPU', 'PC', 'OPERATIVO', 'SALA-MAIPU', 'SN-AB12-3456', 'Lenovo', 'ThinkCentre M70', '450000', '', '', '', 'Ejemplo: eliminar esta fila antes de importar.']);
+        fputcsv($stream, ['AF-2026-001', 'MAIPU', 'PC', 'OPERATIVO', 'alumnos', 'SALA-MAIPU', 'SN-AB12-3456', 'Lenovo', 'ThinkCentre M70', '450000', '', '', '', 'Ejemplo: eliminar esta fila antes de importar.']);
         rewind($stream);
         $contents = stream_get_contents($stream);
         fclose($stream);
@@ -181,6 +181,9 @@ class AssetImportController extends Controller
             if (! $statuses->has(strtolower(trim($row['estado_codigo'])))) {
                 $add('estado_codigo', 'estado_invalido', 'El estado no existe o está inactivo.');
             }
+            if (! in_array(strtolower(trim($row['uso'])), ['administrativo', 'alumnos', 'docente', 'comun'], true)) {
+                $add('uso', 'uso_invalido', 'El uso debe ser administrativo, alumnos, docente o comun.');
+            }
             $locationCode = trim($row['ubicacion_codigo']);
             if ($locationCode !== '' && (! $locations->has($locationCode) || ($sites->get(trim($row['sede_codigo'])) && $locations->get($locationCode)->sede_id !== $sites->get(trim($row['sede_codigo']))))) {
                 $add('ubicacion_codigo', 'ubicacion_invalida', 'La ubicación no existe, está inactiva o pertenece a otra sede.');
@@ -209,6 +212,6 @@ class AssetImportController extends Controller
         $statusId = DB::table('estados_activo')->where('codigo', strtolower(trim($row['estado_codigo'])))->value('id');
         $locationId = trim($row['ubicacion_codigo']) === '' ? null : DB::table('ubicaciones')->where('codigo', trim($row['ubicacion_codigo']))->value('id');
 
-        return ['sede_id' => $siteId, 'tipo_activo_id' => $typeId, 'estado_activo_id' => $statusId, 'ubicacion_actual_id' => $locationId, 'activo_fijo' => trim($row['activo_fijo']), 'numero_serie' => trim($row['numero_serie']) ?: null, 'marca' => trim($row['marca']) ?: null, 'modelo' => trim($row['modelo']) ?: null, 'costo_neto_actual' => trim($row['costo_neto']) ?: null, 'responsable_nombre' => trim($row['responsable_nombre']) ?: null, 'responsable_email' => trim($row['responsable_email']) ?: null, 'responsable_departamento' => trim($row['responsable_departamento']) ?: null, 'observacion' => trim($row['observacion']) ?: null, 'creado_por' => $userId];
+        return ['sede_id' => $siteId, 'tipo_activo_id' => $typeId, 'estado_activo_id' => $statusId, 'uso' => strtolower(trim($row['uso'])), 'ubicacion_actual_id' => $locationId, 'activo_fijo' => trim($row['activo_fijo']), 'numero_serie' => trim($row['numero_serie']) ?: null, 'marca' => trim($row['marca']) ?: null, 'modelo' => trim($row['modelo']) ?: null, 'costo_neto_actual' => trim($row['costo_neto']) ?: null, 'responsable_nombre' => trim($row['responsable_nombre']) ?: null, 'responsable_email' => trim($row['responsable_email']) ?: null, 'responsable_departamento' => trim($row['responsable_departamento']) ?: null, 'observacion' => trim($row['observacion']) ?: null, 'creado_por' => $userId];
     }
 }

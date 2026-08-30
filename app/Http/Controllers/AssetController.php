@@ -22,12 +22,14 @@ class AssetController extends Controller
         Gate::authorize('consultar-inventario');
 
         $term = trim((string) $request->query('q', ''));
+        $usage = trim((string) $request->query('uso', ''));
         $assets = Asset::query()->with(['type', 'status', 'location'])
             ->when($term !== '', fn ($query) => $query->whereAny(['activo_fijo', 'numero_serie', 'marca', 'modelo'], 'like', "%{$term}%"))
-            ->when($term === '', fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($usage !== '', fn ($query) => $query->where('uso', $usage))
+            ->when($term === '' && $usage === '', fn ($query) => $query->whereRaw('1 = 0'))
             ->orderByDesc('id')->paginate(20)->withQueryString();
 
-        return view('assets.index', compact('assets', 'term'));
+        return view('assets.index', compact('assets', 'term', 'usage'));
     }
 
     public function create(Request $request): View
@@ -127,7 +129,7 @@ class AssetController extends Controller
 
     private function data(Request $request): array
     {
-        $data = $request->validate(['sede_id' => ['required', 'exists:sedes,id'], 'tipo_activo_id' => ['required', 'exists:tipos_activo,id'], 'estado_activo_id' => ['required', 'exists:estados_activo,id'], 'ubicacion_actual_id' => ['nullable', 'exists:ubicaciones,id'], 'activo_fijo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('activos', 'activo_fijo')->ignore($request->route('asset'))], 'numero_serie' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'costo_neto_actual' => ['nullable', 'numeric', 'min:0'], 'responsable_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL .\'-]+$/u'], 'responsable_email' => ['nullable', 'email', 'max:255'], 'responsable_departamento' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'asignacion_vence_at' => ['nullable', 'date'], 'observacion' => ['nullable', 'string', 'max:2000']]);
+        $data = $request->validate(['sede_id' => ['required', 'exists:sedes,id'], 'tipo_activo_id' => ['required', 'exists:tipos_activo,id'], 'estado_activo_id' => ['required', 'exists:estados_activo,id'], 'uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])], 'ubicacion_actual_id' => ['nullable', 'exists:ubicaciones,id'], 'activo_fijo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('activos', 'activo_fijo')->ignore($request->route('asset'))], 'numero_serie' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'costo_neto_actual' => ['nullable', 'numeric', 'min:0'], 'responsable_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL .\'-]+$/u'], 'responsable_email' => ['nullable', 'email', 'max:255'], 'responsable_departamento' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'asignacion_vence_at' => ['nullable', 'date'], 'observacion' => ['nullable', 'string', 'max:2000']]);
         if (($data['responsable_nombre'] ?? null) xor ($data['responsable_email'] ?? null)) {
             abort(422, 'El responsable exige nombre y correo.');
         } if (($data['ubicacion_actual_id'] ?? null) && ($data['responsable_nombre'] ?? null)) {
@@ -158,4 +160,3 @@ class AssetController extends Controller
         return $record?->id ?? DB::table('codigos_escaneo')->insertGetId(['codigo' => $code, 'activo' => true, 'created_at' => now(), 'updated_at' => now()]);
     }
 }
-

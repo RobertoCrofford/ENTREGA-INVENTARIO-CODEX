@@ -9,15 +9,15 @@
 </div>
 
 <form class="mb-3" method="GET">
-    <div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="q" class="form-control" value="{{ $term }}" placeholder="Buscar activo fijo, serie, marca o modelo" autofocus><button class="btn btn-outline-primary" type="submit">Buscar</button></div>
+    <div class="row g-2"><div class="col-md"><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="q" class="form-control" value="{{ $term }}" placeholder="Buscar activo fijo, serie, marca o modelo" autofocus></div></div><div class="col-md-3"><select name="uso" class="form-select"><option value="">Todos los usos</option><option value="administrativo" @selected($usage === 'administrativo')>Administrativo</option><option value="alumnos" @selected($usage === 'alumnos')>Alumnos</option><option value="docente" @selected($usage === 'docente')>Docente</option><option value="comun" @selected($usage === 'comun')>Uso común</option><option value="sin_definir" @selected($usage === 'sin_definir')>Sin definir</option></select></div><div class="col-md-auto"><button class="btn btn-outline-primary w-100" type="submit">Buscar</button></div></div>
 </form>
 
-@if($term === '')
+@if($term === '' && $usage === '')
     <div class="card"><div class="card-body text-center py-5 text-body-secondary"><i class="bi bi-search fs-2 d-block mb-2"></i>Ingresa un código, serie, marca o modelo para ver el detalle de un activo.</div></div>
 @elseif($assets->isEmpty())
-    <div class="card"><div class="card-body text-center py-5 text-body-secondary">No se encontraron activos para “{{ $term }}”.</div></div>
+    <div class="card"><div class="card-body text-center py-5 text-body-secondary">No se encontraron activos con los criterios seleccionados.</div></div>
 @else
-    <p class="text-body-secondary small">{{ $assets->total() }} resultado(s) para “{{ $term }}”.</p>
+    <p class="text-body-secondary small">{{ $assets->total() }} resultado(s).</p>
     <div class="row g-3">
         @foreach($assets as $asset)
             <div class="col-12">
@@ -30,6 +30,7 @@
                         <dl class="row mb-0 details-list">
                             <dt class="col-md-3">Tipo</dt><dd class="col-md-3">{{ $asset->type?->nombre ?? '—' }}</dd>
                             <dt class="col-md-3">Estado</dt><dd class="col-md-3">{{ $asset->status?->nombre ?? '—' }}</dd>
+                            <dt class="col-md-3">Uso</dt><dd class="col-md-3">{{ ['administrativo' => 'Administrativo', 'alumnos' => 'Alumnos', 'docente' => 'Docente', 'comun' => 'Uso común', 'sin_definir' => 'Sin definir'][$asset->uso] ?? 'Sin definir' }}</dd>
                             <dt class="col-md-3">Marca / modelo</dt><dd class="col-md-3">{{ trim(($asset->marca ?? '').' '.($asset->modelo ?? '')) ?: '—' }}</dd>
                             <dt class="col-md-3">N.º de serie</dt><dd class="col-md-3">{{ $asset->numero_serie ?: '—' }}</dd>
                             <dt class="col-md-3">Ubicación</dt><dd class="col-md-3">{{ $asset->location?->nombre ?? '—' }}</dd>

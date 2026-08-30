@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['sede_id', 'tipo_activo_id', 'estado_activo_id', 'codigo_escaneo_id', 'ubicacion_actual_id', 'activo_fijo', 'numero_serie', 'marca', 'modelo', 'costo_neto_actual', 'responsable_nombre', 'responsable_email', 'responsable_departamento', 'asignacion_vence_at', 'observacion', 'creado_por'])]
+#[Fillable(['sede_id', 'tipo_activo_id', 'estado_activo_id', 'uso', 'codigo_escaneo_id', 'ubicacion_actual_id', 'activo_fijo', 'numero_serie', 'marca', 'modelo', 'costo_neto_actual', 'responsable_nombre', 'responsable_email', 'responsable_departamento', 'asignacion_vence_at', 'observacion', 'creado_por'])]
 class Asset extends Model
 {
     protected $table = 'activos';
@@ -31,4 +31,3 @@ class Asset extends Model
         return $this->belongsTo(Location::class, 'ubicacion_actual_id');
     }
 }
-
