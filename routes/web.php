@@ -47,6 +47,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('notifications/{notificationId}/attend', [NotificationController::class, 'attend'])->name('notifications.attend');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         Route::post('audit-logs/generate', [AuditLogController::class, 'generate'])->name('audit-logs.generate');
+        Route::get('audit-logs/{archiveId}/download', [AuditLogController::class, 'download'])->name('audit-logs.download');
         Route::get('scan', [ScanController::class, 'index'])->name('scan.index');
         Route::post('scan', [ScanController::class, 'search'])->name('scan.search');
         Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');

@@ -25,7 +25,7 @@ class AuditLogController extends Controller
         return view('audit-logs.index', compact('archives'));
     }
 
-    public function generate(Request $request, AuditService $audit)
+    public function generate(Request $request, AuditService $audit): RedirectResponse
     {
         Gate::authorize('generar-bitacora');
         $data = $request->validate(['desde' => ['required', 'date'], 'hasta' => ['required', 'date', 'after_or_equal:desde'], 'formato' => ['required', Rule::in(['csv', 'pdf'])]]);
@@ -68,6 +68,15 @@ class AuditLogController extends Controller
         }
         $audit->record($request->user(), 'generar', 'archivo_auditoria', $archiveId, reason: "Bitácora {$data['desde']} a {$data['hasta']}.");
 
-        return response()->download(Storage::disk('local')->path($path), $filename, ['Content-Type' => $data['formato'] === 'pdf' ? 'application/pdf' : 'text/csv; charset=UTF-8']);
+        return redirect()->route('audit-logs.index')->with('success', "Bitácora {$filename} generada correctamente. Ya puedes descargarla desde el historial.");
+    }
+
+    public function download(int $archiveId)
+    {
+        Gate::authorize('generar-bitacora');
+        $archive = DB::table('archivos_auditoria')->find($archiveId);
+        abort_unless($archive && Storage::disk('local')->exists($archive->ruta), 404);
+
+        return Storage::disk('local')->download($archive->ruta, basename($archive->ruta));
     }
 }
