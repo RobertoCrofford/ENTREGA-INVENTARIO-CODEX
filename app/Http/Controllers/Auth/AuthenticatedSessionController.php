@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\SessionLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ class AuthenticatedSessionController extends Controller
         return Auth::check() ? redirect()->route('dashboard') : view('auth.login');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, SessionLimitService $sessionLimit): RedirectResponse
     {
         $credentials = $request->validate([
             'username' => ['required', 'string'],
@@ -41,6 +42,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $sessionLimit->enforce($user->id, $request->session()->getId());
         $user->forceFill([
             'intentos_fallidos' => 0,
             'bloqueado_hasta' => null,
