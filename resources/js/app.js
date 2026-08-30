@@ -35,3 +35,22 @@ document.querySelectorAll('input[name], textarea[name]').forEach((field) => {
         field[attribute] = value;
     });
 });
+
+document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
+    button.addEventListener('shown.bs.dropdown', () => {
+        const badge = button.querySelector('.notification-dot');
+        if (!badge) return;
+
+        fetch(button.dataset.notificationReadUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+        }).then((response) => {
+            if (response.ok) badge.remove();
+        }).catch(() => {});
+    });
+});

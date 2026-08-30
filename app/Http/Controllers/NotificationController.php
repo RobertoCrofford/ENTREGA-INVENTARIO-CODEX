@@ -20,10 +20,14 @@ class NotificationController extends Controller
         return view('notifications.index', compact('notifications'));
     }
 
-    public function markAllRead(): RedirectResponse
+    public function markAllRead(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         Gate::authorize('ver-notificaciones');
         DB::table('notificaciones')->where('usuario_id', auth()->id())->whereNull('leido_at')->update(['leido_at' => now()]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
+        }
 
         return back()->with('success', 'Notificaciones marcadas como leídas.');
     }

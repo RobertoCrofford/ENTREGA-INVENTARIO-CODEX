@@ -45,8 +45,11 @@ class AppServiceProvider extends ServiceProvider
             $unreadNotifications = $user && Schema::hasTable('notificaciones')
                 ? DB::table('notificaciones')->where('usuario_id', $user->id)->whereNull('leido_at')->count()
                 : 0;
+            $recentNotifications = $user && Schema::hasTable('notificaciones') && $user->can('ver-notificaciones')
+                ? DB::table('notificaciones')->where('usuario_id', $user->id)->orderByDesc('id')->limit(5)->get()
+                : collect();
 
-            $view->with('unreadNotifications', $unreadNotifications);
+            $view->with(compact('unreadNotifications', 'recentNotifications'));
         });
     }
 }
