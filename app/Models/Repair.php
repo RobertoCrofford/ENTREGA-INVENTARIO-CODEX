@@ -7,10 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['activo_id', 'tecnico_id', 'prioridad', 'falla_reportada', 'estado', 'creado_por'])]
+#[Fillable(['activo_id', 'tecnico_id', 'prioridad', 'falla_reportada', 'estado', 'estado_final_id', 'resultado', 'finalizado_at', 'creado_por'])]
 class Repair extends Model
 {
     protected $table = 'reparaciones';
+
+    protected function casts(): array
+    {
+        return ['finalizado_at' => 'datetime'];
+    }
 
     public function asset(): BelongsTo
     {
@@ -27,4 +32,3 @@ class Repair extends Model
         return $this->hasMany(RepairEvidence::class, 'reparacion_id');
     }
 }
-

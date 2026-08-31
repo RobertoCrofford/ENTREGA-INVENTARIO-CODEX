@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -56,7 +57,7 @@ class ProductController extends Controller
     {
         Gate::authorize('gestionar-inventario');
         $product = DB::transaction(function () use ($request) {
-            return Product::query()->create($this->data($request) + ['codigo_interno' => 'PRD-'.str_pad((string) (Product::max('id') + 1), 7, '0', STR_PAD_LEFT), 'codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.product')), 'creado_por' => $request->user()->id]);
+            return Product::query()->create($this->data($request) + ['activo' => true, 'codigo_interno' => 'PRD-'.strtoupper((string) Str::ulid()), 'codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.product')), 'creado_por' => $request->user()->id]);
         });
         $audit->record($request->user(), 'crear', 'producto', $product->id, after: $product->toArray());
 
@@ -82,7 +83,7 @@ class ProductController extends Controller
 
     public function destroy(Request $request, Product $product, AuditService $audit): RedirectResponse
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('desactivar-productos');
         if ($product->existencias()->where('cantidad', '>', 0)->exists()) {
             return back()->withErrors(['producto' => 'No se puede desactivar un producto con stock disponible.']);
         }
@@ -95,7 +96,7 @@ class ProductController extends Controller
 
     private function data(Request $request): array
     {
-        return $request->validate(['categoria_id' => ['required', Rule::exists('categorias', 'id')->where('activo', true)], 'numero_parte' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'nombre' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'descripcion' => ['nullable', 'string', 'max:2000'], 'costo_neto_actual' => ['required', 'numeric', 'min:0'], 'activo' => ['required', 'boolean']]);
+        return $request->validate(['categoria_id' => ['required', Rule::exists('categorias', 'id')->where('activo', true)], 'numero_parte' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'nombre' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'descripcion' => ['nullable', 'string', 'max:2000'], 'costo_neto_actual' => ['required', 'numeric', 'min:0']]);
     }
 
     private function categories()
@@ -127,4 +128,3 @@ class ProductController extends Controller
         return $record?->id ?? DB::table('codigos_escaneo')->insertGetId(['codigo' => $code, 'activo' => true, 'created_at' => now(), 'updated_at' => now()]);
     }
 }
-

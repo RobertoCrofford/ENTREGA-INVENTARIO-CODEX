@@ -30,6 +30,7 @@ class ScanController extends Controller
     {
         Gate::authorize('consultar-inventario');
         $data = $request->validate(['codigo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/']]);
+
         return $this->result($request, trim($data['codigo']), true);
     }
 
@@ -40,14 +41,15 @@ class ScanController extends Controller
             if ($codeId) {
                 $query->where('codigo_escaneo_id', $codeId);
             }
-            $query->orWhere('codigo_interno', $code)->orWhere('numero_parte', $code);
+            $query->orWhere('codigo_interno', $code);
         })->first();
         $asset = Asset::query()->with(['type', 'status'])->where(function ($query) use ($codeId, $code) {
             if ($codeId) {
                 $query->where('codigo_escaneo_id', $codeId);
             }
-            $query->orWhere('activo_fijo', $code)->orWhere('numero_serie', $code);
+            $query->orWhere('activo_fijo', $code);
         })->first();
+        $ambiguous = $product && $asset;
         if ($notifyGuest && ! $product && ! $asset && $request->user()->tieneRol(Role::INVITADO)) {
             $message = "El usuario invitado {$request->user()->name} escaneó el código {$code}, sin coincidencias. Revisa y registra el producto o activo si corresponde.";
             $recipientIds = DB::table('users')->join('roles', 'roles.id', '=', 'users.rol_id')
@@ -68,6 +70,7 @@ class ScanController extends Controller
             'codigo' => $code,
             'product' => $product,
             'asset' => $asset,
+            'ambiguous' => $ambiguous,
         ]);
     }
 }

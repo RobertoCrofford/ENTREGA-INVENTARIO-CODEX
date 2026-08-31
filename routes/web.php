@@ -1,12 +1,13 @@
 <?php
 
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetImportController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
@@ -72,9 +73,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('imports/assets/{import}/rejected', [AssetImportController::class, 'rejected'])->name('imports.assets.rejected');
         Route::post('assets/{asset}/status', [AssetController::class, 'changeStatus'])->name('assets.status');
         Route::post('assets/{asset}/reincorporate', [AssetController::class, 'reincorporate'])->name('assets.reincorporate');
+        Route::get('asset-disposals', [AssetDisposalController::class, 'index'])->name('asset-disposals.index');
+        Route::post('asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
+        Route::post('asset-disposals/{disposal}/approve', [AssetDisposalController::class, 'approve'])->name('asset-disposals.approve');
+        Route::post('asset-disposals/{disposal}/reject', [AssetDisposalController::class, 'reject'])->name('asset-disposals.reject');
+        Route::get('asset-disposals/{disposal}/download', [AssetDisposalController::class, 'download'])->name('asset-disposals.download');
         Route::resource('repairs', RepairController::class)->only('index', 'create', 'store');
         Route::get('repairs/{repair}/evidences/{evidence}', [RepairController::class, 'evidence'])->name('repairs.evidence');
         Route::post('repairs/{repair}/complete', [RepairController::class, 'complete'])->name('repairs.complete');
     });
 });
-

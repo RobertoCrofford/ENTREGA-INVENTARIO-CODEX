@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
 use App\Models\Asset;
+use App\Models\Product;
 use App\Services\InventoryMovementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,7 +45,7 @@ class InventoryMovementController extends Controller
     public function store(Request $request, InventoryMovementService $service): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $data = $request->validate(['item_type' => ['required', Rule::in(['producto', 'activo'])], 'tipo' => ['required', Rule::in(['entrada', 'salida', 'devolucion', 'traslado', 'ajuste', 'baja'])], 'producto_id' => ['nullable', 'exists:productos,id'], 'activo_id' => ['nullable', 'exists:activos,id'], 'cantidad' => ['required', 'integer', 'min:1', 'max:100000'], 'origen_id' => ['nullable', 'exists:ubicaciones,id'], 'destino_id' => ['nullable', 'exists:ubicaciones,id'], 'observacion' => ['nullable', 'string', 'max:2000'], 'idempotency_key' => ['required', 'uuid']]);
+        $data = $request->validate(['item_type' => ['required', Rule::in(['producto', 'activo'])], 'tipo' => ['required', Rule::in(['entrada', 'salida', 'devolucion', 'traslado'])], 'producto_id' => ['nullable', 'exists:productos,id'], 'activo_id' => ['nullable', 'exists:activos,id'], 'cantidad' => ['required', 'integer', 'min:1', 'max:100000'], 'origen_id' => ['nullable', 'exists:ubicaciones,id'], 'destino_id' => ['nullable', 'exists:ubicaciones,id'], 'observacion' => ['nullable', 'string', 'max:2000'], 'idempotency_key' => ['required', 'uuid']]);
         $id = $service->createAndPublish($data, $request->user());
 
         return redirect()->route('movements.index')->with('success', "Movimiento #{$id} publicado.");

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['sede_id', 'tipo_activo_id', 'estado_activo_id', 'uso', 'codigo_escaneo_id', 'ubicacion_actual_id', 'activo_fijo', 'numero_serie', 'marca', 'modelo', 'costo_neto_actual', 'responsable_nombre', 'responsable_email', 'responsable_departamento', 'asignacion_vence_at', 'observacion', 'creado_por'])]
 class Asset extends Model
@@ -29,5 +30,10 @@ class Asset extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'ubicacion_actual_id');
+    }
+
+    public function repairs(): HasMany
+    {
+        return $this->hasMany(Repair::class, 'activo_id');
     }
 }

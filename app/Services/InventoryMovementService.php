@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Product;
 use App\Models\Asset;
+use App\Models\Product;
 use App\Models\Stock;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +18,10 @@ class InventoryMovementService
         return DB::transaction(function () use ($data, $actor) {
             $key = $data['idempotency_key'] ?? (string) Str::uuid();
             if ($existing = DB::table('movimientos_inventario')->where('idempotency_key', $key)->lockForUpdate()->first()) {
+                if ((int) $existing->creado_por !== (int) $actor->id) {
+                    throw ValidationException::withMessages(['idempotency_key' => 'La clave de operación ya pertenece a otro usuario.']);
+                }
+
                 return $existing->id;
             }
             $this->validateShape($data);
@@ -28,12 +32,12 @@ class InventoryMovementService
             $origin = $data['origen_id'] ?? null;
             $destination = $data['destino_id'] ?? null;
             foreach (collect([$origin, $destination])->filter()->unique() as $locationId) {
-                if (! DB::table('ubicaciones')->where('id', $locationId)->where('activo', true)->exists()) {
-                    throw ValidationException::withMessages(['ubicacion' => 'El origen y destino deben ser ubicaciones activas.']);
+                if (! DB::table('ubicaciones')->where('id', $locationId)->where('tipo', 'bodega')->where('activo', true)->exists()) {
+                    throw ValidationException::withMessages(['ubicacion' => 'El origen y destino de productos deben ser bodegas activas.']);
                 }
             }
             $reason = ucfirst($data['tipo']).' registrada desde el sistema.';
-            $id = DB::table('movimientos_inventario')->insertGetId(['folio' => 'MOV-'.now()->format('YmdHis').'-'.str_pad((string) (DB::table('movimientos_inventario')->max('id') + 1), 6, '0', STR_PAD_LEFT), 'tipo' => $data['tipo'], 'estado' => 'borrador', 'origen_id' => $origin, 'destino_id' => $destination, 'motivo' => $reason, 'observacion' => $data['observacion'] ?? null, 'receptor_tipo' => null, 'receptor_nombre' => null, 'receptor_email' => null, 'receptor_departamento' => null, 'idempotency_key' => $key, 'creado_por' => $actor->id, 'created_at' => now(), 'updated_at' => now()]);
+            $id = DB::table('movimientos_inventario')->insertGetId(['folio' => 'MOV-'.$key, 'tipo' => $data['tipo'], 'estado' => 'borrador', 'origen_id' => $origin, 'destino_id' => $destination, 'motivo' => $reason, 'observacion' => $data['observacion'] ?? null, 'receptor_tipo' => null, 'receptor_nombre' => null, 'receptor_email' => null, 'receptor_departamento' => null, 'idempotency_key' => $key, 'creado_por' => $actor->id, 'created_at' => now(), 'updated_at' => now()]);
             DB::table('movimientos_detalle')->insert(['movimiento_id' => $id, 'producto_id' => $product->id, 'cantidad' => $data['cantidad'], 'costo_neto_snapshot' => $product->costo_neto_actual]);
             $this->apply($data['tipo'], $product->id, $data['cantidad'], $origin, $destination);
             DB::table('movimientos_inventario')->where('id', $id)->update(['estado' => 'publicado', 'publicado_por' => $actor->id, 'publicado_at' => now(), 'updated_at' => now()]);
@@ -49,10 +53,10 @@ class InventoryMovementService
         foreach (collect([$origin, $destination])->filter()->unique()->sort() as $warehouse) {
             $stock[$warehouse] = Stock::query()->where('producto_id', $productId)->where('bodega_id', $warehouse)->lockForUpdate()->first();
         }
-        if (in_array($type, ['salida', 'traslado', 'baja'], true) && (! $origin || ! ($stock[$origin] ?? null) || $stock[$origin]->cantidad < $quantity)) {
+        if (in_array($type, ['salida', 'traslado'], true) && (! $origin || ! ($stock[$origin] ?? null) || $stock[$origin]->cantidad < $quantity)) {
             throw ValidationException::withMessages(['cantidad' => 'Stock insuficiente.']);
         }
-        if (in_array($type, ['salida', 'traslado', 'baja'], true)) {
+        if (in_array($type, ['salida', 'traslado'], true)) {
             $this->change($stock[$origin], -$quantity);
         }
         if (in_array($type, ['entrada', 'devolucion', 'traslado'], true)) {
@@ -89,7 +93,7 @@ class InventoryMovementService
         }
 
         $reason = 'Traslado de activo fijo registrado desde el sistema.';
-        $id = DB::table('movimientos_inventario')->insertGetId(['folio' => 'MOV-'.now()->format('YmdHis').'-'.str_pad((string) (DB::table('movimientos_inventario')->max('id') + 1), 6, '0', STR_PAD_LEFT), 'tipo' => 'traslado', 'estado' => 'borrador', 'origen_id' => $origin, 'destino_id' => $data['destino_id'], 'motivo' => $reason, 'observacion' => $data['observacion'] ?? null, 'idempotency_key' => $key, 'creado_por' => $actor->id, 'created_at' => now(), 'updated_at' => now()]);
+        $id = DB::table('movimientos_inventario')->insertGetId(['folio' => 'MOV-'.$key, 'tipo' => 'traslado', 'estado' => 'borrador', 'origen_id' => $origin, 'destino_id' => $data['destino_id'], 'motivo' => $reason, 'observacion' => $data['observacion'] ?? null, 'idempotency_key' => $key, 'creado_por' => $actor->id, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('movimientos_detalle')->insert(['movimiento_id' => $id, 'activo_id' => $asset->id, 'cantidad' => 1, 'costo_neto_snapshot' => $asset->costo_neto_actual ?? 0]);
         $asset->update(['ubicacion_actual_id' => $data['destino_id']]);
         DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'traslado', 'estado_origen_id' => $asset->estado_activo_id, 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_origen_id' => $origin, 'ubicacion_destino_id' => $data['destino_id'], 'motivo' => $reason, 'ejecutado_por' => $actor->id, 'ocurrido_at' => now()]);

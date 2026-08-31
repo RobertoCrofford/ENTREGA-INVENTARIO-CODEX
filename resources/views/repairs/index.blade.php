@@ -43,8 +43,12 @@
                             <td><span class="repair-status">{{ str_replace('_', ' ', ucfirst($repair->estado)) }}</span></td>
                             <td>
                                 @if($canManageRepairs && $repair->estado !== 'resuelta' && $canCloseRepair)
-                                    <form method="POST" action="{{ route('repairs.complete', $repair) }}">
+                                    <form method="POST" action="{{ route('repairs.complete', $repair) }}" class="d-grid gap-2" style="min-width: 250px">
                                         @csrf
+                                        <label class="visually-hidden" for="estado_final_{{ $repair->id }}">Estado final</label>
+                                        <select class="form-select form-select-sm" id="estado_final_{{ $repair->id }}" name="estado_final" required><option value="operativo">Operativo</option><option value="no_operativo">No operativo</option></select>
+                                        <label class="visually-hidden" for="resultado_{{ $repair->id }}">Resultado</label>
+                                        <textarea class="form-control form-control-sm" id="resultado_{{ $repair->id }}" name="resultado" rows="2" minlength="5" maxlength="2000" placeholder="Resultado de la reparación" required></textarea>
                                         <button class="btn btn-sm btn-outline-primary" type="submit"><i class="bi bi-check2-circle me-1"></i>Cerrar</button>
                                     </form>
                                 @endif

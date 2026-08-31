@@ -2,10 +2,12 @@
 
 use App\Http\Middleware\EnsurePasswordHasChanged;
 use App\Http\Middleware\EnsureUserIsActive;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -24,7 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
-        $exceptions->render(function (\Throwable $exception, Request $request) {
+        $exceptions->render(function (Throwable $exception, Request $request) {
             // Diagnóstico puntual para el entorno local: permite obtener la causa sin
             // exponer trazas durante el uso habitual de la aplicación.
             if (app()->environment('local') && $request->boolean('diagnostic')) {
@@ -32,8 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($request->expectsJson()
-                || $exception instanceof \Illuminate\Auth\AuthenticationException
-                || $exception instanceof \Illuminate\Validation\ValidationException) {
+                || $exception instanceof AuthenticationException
+                || $exception instanceof ValidationException) {
                 return null;
             }
 
@@ -48,4 +50,3 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->view('errors.application', compact('status', 'message'), $status);
         });
     })->create();
-

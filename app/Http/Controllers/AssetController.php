@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AssetController extends Controller
@@ -53,7 +54,11 @@ class AssetController extends Controller
     {
         Gate::authorize('gestionar-inventario');
         $asset = DB::transaction(function () use ($request, $audit) {
-            $asset = Asset::create($this->data($request) + ['codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.asset')), 'creado_por' => $request->user()->id]);
+            $data = $this->data($request);
+            $processor = $data['procesador'] ?? null;
+            unset($data['procesador']);
+            $asset = Asset::create($data + ['codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.asset')), 'creado_por' => $request->user()->id]);
+            $this->syncPcSpecification($asset, $processor);
             DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'alta', 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_destino_id' => $asset->ubicacion_actual_id, 'motivo' => 'Alta de activo', 'ejecutado_por' => $request->user()->id, 'ocurrido_at' => now()]);
             $audit->record($request->user(), 'crear', 'activo', $asset->id, after: $asset->toArray());
 
@@ -96,7 +101,13 @@ class AssetController extends Controller
         if ($asset->status()->where('codigo', 'dado_baja')->exists()) {
             return back()->withErrors(['activo' => 'Un activo dado de baja no puede modificarse.']);
         } $before = $asset->toArray();
-        $asset->update($this->data($request));
+        $data = $this->data($request, false);
+        $processor = $data['procesador'] ?? null;
+        unset($data['procesador']);
+        DB::transaction(function () use ($asset, $data, $processor): void {
+            $asset->update($data);
+            $this->syncPcSpecification($asset, $processor);
+        });
         $audit->record($request->user(), 'actualizar', 'activo', $asset->id, $before, $asset->fresh()->toArray());
 
         return redirect()->route('assets.index')->with('success', 'Activo actualizado.');
@@ -105,7 +116,7 @@ class AssetController extends Controller
     public function changeStatus(Request $request, Asset $asset, AssetLifecycleService $service): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $data = $request->validate(['estado' => ['required', Rule::exists('estados_activo', 'codigo')], 'motivo' => ['required', 'string'], 'ubicacion_actual_id' => ['nullable', 'exists:ubicaciones,id']]);
+        $data = $request->validate(['estado' => ['required', Rule::exists('estados_activo', 'codigo')->where('activo', true), Rule::notIn(['dado_baja'])], 'motivo' => ['required', 'string', 'min:5', 'max:1000'], 'ubicacion_actual_id' => ['nullable', Rule::exists('ubicaciones', 'id')->where('activo', true)]]);
         $service->changeStatus($asset, $data['estado'], $request->user(), $data['motivo'], $data['ubicacion_actual_id'] ?? null);
 
         return back()->with('success', 'Estado actualizado y registrado en historial.');
@@ -148,19 +159,49 @@ class AssetController extends Controller
 
     private function formData(Asset $asset): array
     {
-        return ['asset' => $asset, 'sites' => DB::table('sedes')->where('activo', true)->orderBy('nombre')->get(), 'types' => AssetType::where('activo', true)->orderBy('nombre')->get(), 'statuses' => AssetStatus::where('activo', true)->orderBy('nombre')->get(), 'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('nombre')->get()];
+        return ['asset' => $asset, 'processor' => DB::table('especificaciones_pc')->where('activo_id', $asset->id)->value('procesador'), 'sites' => DB::table('sedes')->where('activo', true)->orderBy('nombre')->get(), 'types' => AssetType::where('activo', true)->orderBy('nombre')->get(), 'statuses' => AssetStatus::where('activo', true)->where('codigo', '!=', 'dado_baja')->orderBy('nombre')->get(), 'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('nombre')->get()];
     }
 
-    private function data(Request $request): array
+    private function data(Request $request, bool $includeStatus = true): array
     {
-        $data = $request->validate(['sede_id' => ['required', 'exists:sedes,id'], 'tipo_activo_id' => ['required', 'exists:tipos_activo,id'], 'estado_activo_id' => ['required', 'exists:estados_activo,id'], 'uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])], 'ubicacion_actual_id' => ['nullable', 'exists:ubicaciones,id'], 'activo_fijo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('activos', 'activo_fijo')->ignore($request->route('asset'))], 'numero_serie' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'costo_neto_actual' => ['nullable', 'numeric', 'min:0'], 'responsable_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL .\'-]+$/u'], 'responsable_email' => ['nullable', 'email', 'max:255'], 'responsable_departamento' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'asignacion_vence_at' => ['nullable', 'date'], 'observacion' => ['nullable', 'string', 'max:2000']]);
+        $rules = ['sede_id' => ['required', Rule::exists('sedes', 'id')->where('activo', true)], 'tipo_activo_id' => ['required', Rule::exists('tipos_activo', 'id')->where('activo', true)], 'uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])], 'ubicacion_actual_id' => ['nullable', Rule::exists('ubicaciones', 'id')->where('activo', true)], 'activo_fijo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('activos', 'activo_fijo')->ignore($request->route('asset'))], 'numero_serie' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'costo_neto_actual' => ['required', 'numeric', 'min:0'], 'responsable_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL .\'-]+$/u'], 'responsable_email' => ['nullable', 'email', 'max:255'], 'responsable_departamento' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'asignacion_vence_at' => ['nullable', 'date'], 'observacion' => ['nullable', 'string', 'max:2000'], 'procesador' => ['nullable', 'string', 'max:255']];
+        if ($includeStatus) {
+            $rules['estado_activo_id'] = ['required', Rule::exists('estados_activo', 'id')->where(fn ($query) => $query->where('activo', true)->where('codigo', '!=', 'dado_baja'))];
+        }
+        $data = $request->validate($rules);
+        if (AssetType::query()->whereKey($data['tipo_activo_id'])->where('es_pc', true)->exists() && blank($data['procesador'] ?? null)) {
+            throw ValidationException::withMessages(['procesador' => 'El procesador es obligatorio para activos de tipo PC.']);
+        }
         if (($data['responsable_nombre'] ?? null) xor ($data['responsable_email'] ?? null)) {
             abort(422, 'El responsable exige nombre y correo.');
         } if (($data['ubicacion_actual_id'] ?? null) && ($data['responsable_nombre'] ?? null)) {
             abort(422, 'Ubicación y responsable no pueden coexistir.');
         }
+        if (! empty($data['ubicacion_actual_id']) && ! DB::table('ubicaciones')->where('id', $data['ubicacion_actual_id'])->where('sede_id', $data['sede_id'])->exists()) {
+            throw ValidationException::withMessages(['ubicacion_actual_id' => 'La ubicación debe pertenecer a la sede seleccionada.']);
+        }
+        $statusId = $includeStatus ? $data['estado_activo_id'] : $request->route('asset')?->estado_activo_id;
+        $statusCode = AssetStatus::query()->whereKey($statusId)->value('codigo');
+        if ($statusCode !== 'no_localizado' && empty($data['ubicacion_actual_id']) && empty($data['responsable_nombre'])) {
+            throw ValidationException::withMessages(['ubicacion_actual_id' => 'El activo debe tener una ubicación o un responsable.']);
+        }
 
         return $data;
+    }
+
+    private function syncPcSpecification(Asset $asset, ?string $processor): void
+    {
+        if ($asset->type()->where('es_pc', true)->exists()) {
+            if (DB::table('especificaciones_pc')->where('activo_id', $asset->id)->exists()) {
+                DB::table('especificaciones_pc')->where('activo_id', $asset->id)->update(['procesador' => $processor, 'updated_at' => now()]);
+            } else {
+                DB::table('especificaciones_pc')->insert(['activo_id' => $asset->id, 'procesador' => $processor, 'created_at' => now(), 'updated_at' => now()]);
+            }
+
+            return;
+        }
+
+        DB::table('especificaciones_pc')->where('activo_id', $asset->id)->delete();
     }
 
     private function scanCode(Request $request): ?string

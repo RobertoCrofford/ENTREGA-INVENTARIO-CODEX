@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class NotificationController extends Controller
         return view('notifications.index', compact('notifications'));
     }
 
-    public function markAllRead(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
+    public function markAllRead(Request $request): RedirectResponse|JsonResponse
     {
         Gate::authorize('ver-notificaciones');
         DB::table('notificaciones')->where('usuario_id', auth()->id())->whereNull('leido_at')->update(['leido_at' => now()]);
@@ -53,7 +54,7 @@ class NotificationController extends Controller
             DB::table('notificaciones')->insert([
                 'usuario_id' => $originUserId,
                 'titulo' => 'Solicitud en atención',
-                'mensaje' => "Tu solicitud por el código ".($codeMatch[1] ?? 'sin registrar')." está siendo atendida por {$request->user()->name}.",
+                'mensaje' => 'Tu solicitud por el código '.($codeMatch[1] ?? 'sin registrar')." está siendo atendida por {$request->user()->name}.",
                 'url' => $referenceUrl, 'creado_at' => now(),
             ]);
 

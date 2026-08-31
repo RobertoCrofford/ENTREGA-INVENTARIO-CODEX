@@ -19,11 +19,17 @@
             <div class="col-md-6"><label class="form-label">Marca</label><input class="form-control" name="marca" value="{{ old('marca', $product->marca) }}"></div>
             <div class="col-md-6"><label class="form-label">Modelo</label><input class="form-control" name="modelo" value="{{ old('modelo', $product->modelo) }}"></div>
             <div class="col-md-6"><label class="form-label">Costo neto</label><input class="form-control" type="number" min="0" step=".01" name="costo_neto_actual" value="{{ old('costo_neto_actual', $product->costo_neto_actual) }}" required></div>
-            <div class="col-md-6"><label class="form-label">Estado</label><select class="form-select" name="activo"><option value="1">Activo</option><option value="0" @selected(old('activo', $product->activo) == false)>Inactivo</option></select></div>
             <div class="col-12"><label class="form-label">Descripción</label><textarea class="form-control" name="descripcion">{{ old('descripcion', $product->descripcion) }}</textarea></div>
         </div>
     </div>
     <div class="card-footer"><button class="btn btn-primary">Guardar</button><a class="btn btn-link" href="{{ route('products.index') }}">Cancelar</a></div>
 </form>
+@if($product->exists && $product->activo && auth()->user()->can('desactivar-productos'))
+<form class="card mt-3" method="POST" action="{{ route('products.destroy', $product) }}">
+    @csrf @method('DELETE')
+    <div class="card-body"><h2 class="h5">Desactivar producto</h2><p class="text-body-secondary mb-0">Solo es posible cuando no mantiene existencias disponibles.</p></div>
+    <div class="card-footer"><button class="btn btn-outline-danger" type="submit">Desactivar producto</button></div>
+</form>
+@endif
 @endsection
 

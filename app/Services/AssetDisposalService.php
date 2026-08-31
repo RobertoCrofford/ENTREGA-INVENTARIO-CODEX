@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Asset;
 use App\Models\AssetStatus;
+use App\Models\Role;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
@@ -14,11 +15,17 @@ class AssetDisposalService
 {
     public function approve(int $requestId, User $approver, ?string $selfJustification = null): void
     {
+        if (! $approver->tieneRol(Role::DIRECTOR_TECNICO, Role::SUPERADMIN)) {
+            throw ValidationException::withMessages(['solicitud' => 'No tienes permiso para aprobar bajas.']);
+        }
         DB::transaction(function () use ($requestId, $approver, $selfJustification) {
             $request = DB::table('solicitudes_baja_activo')->lockForUpdate()->find($requestId);
             if (! $request || $request->estado !== 'pendiente') {
                 throw ValidationException::withMessages(['solicitud' => 'La solicitud no está pendiente.']);
             } $asset = Asset::query()->lockForUpdate()->findOrFail($request->activo_id);
+            if ($asset->status()->where('codigo', 'dado_baja')->exists()) {
+                throw ValidationException::withMessages(['solicitud' => 'El activo ya está dado de baja.']);
+            }
             $self = $request->solicitado_por === $approver->id;
             if ($self && ! $approver->tieneRol('superadmin')) {
                 throw ValidationException::withMessages(['solicitud' => 'Un Director no puede aprobar su propia solicitud.']);
@@ -27,10 +34,11 @@ class AssetDisposalService
             } if ($asset->costo_neto_actual === null) {
                 throw ValidationException::withMessages(['costo' => 'Debe completar el costo antes de aprobar.']);
             } $low = AssetStatus::where('codigo', 'dado_baja')->firstOrFail();
+            $previousStatusId = $asset->estado_activo_id;
             $pdf = $asset->costo_neto_actual > 200000;
             DB::table('solicitudes_baja_activo')->where('id', $requestId)->update(['estado' => 'aprobada', 'resuelto_por' => $approver->id, 'resuelto_at' => now(), 'autoaprobacion_excepcional' => $self, 'justificacion_autoaprobacion' => $selfJustification, 'costo_neto_snapshot' => $asset->costo_neto_actual, 'genera_acta_pdf' => $pdf, 'estado_pdf' => $pdf ? 'pendiente' : 'no_requerido', 'updated_at' => now()]);
             $asset->update(['estado_activo_id' => $low->id, 'ubicacion_actual_id' => null, 'responsable_nombre' => null, 'responsable_email' => null, 'responsable_departamento' => null]);
-            DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'baja', 'estado_origen_id' => $asset->estado_activo_id, 'estado_destino_id' => $low->id, 'motivo' => $request->motivo, 'ejecutado_por' => $approver->id, 'ocurrido_at' => now()]);
+            DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'baja', 'estado_origen_id' => $previousStatusId, 'estado_destino_id' => $low->id, 'motivo' => $request->motivo, 'ejecutado_por' => $approver->id, 'ocurrido_at' => now()]);
             app(AuditService::class)->record($approver, 'aprobar', 'solicitud_baja_activo', $requestId, reason: $request->motivo);
             if ($pdf) {
                 DB::afterCommit(fn () => $this->generatePdf($requestId));

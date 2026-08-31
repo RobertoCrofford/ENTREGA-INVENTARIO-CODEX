@@ -48,9 +48,10 @@
                 <a class="sidebar-link @if(request()->routeIs('dashboard')) active @endif" href="{{ route('dashboard') }}"><i class="bi bi-grid-1x2"></i>Inicio</a>
                 <a class="sidebar-link @if(request()->routeIs('scan.*')) active @endif" href="{{ route('scan.index') }}"><i class="bi bi-upc-scan"></i>Escanear</a>
                 <a class="sidebar-link @if(request()->routeIs('products.*')) active @endif" href="{{ route('products.index') }}"><i class="bi bi-box-seam"></i>Productos</a>
+                <a class="sidebar-link @if(request()->routeIs('assets.*')) active @endif" href="{{ route('assets.index') }}"><i class="bi bi-pc-display"></i>Activos</a>
+                <a class="sidebar-link @if(request()->routeIs('asset-disposals.*')) active @endif" href="{{ route('asset-disposals.index') }}"><i class="bi bi-clipboard-x"></i>Bajas de activos</a>
                 @can('gestionar-inventario')
                     <a class="sidebar-link @if(request()->routeIs('movements.*')) active @endif" href="{{ route('movements.index') }}"><i class="bi bi-arrow-left-right"></i>Movimientos</a>
-                    <a class="sidebar-link @if(request()->routeIs('assets.*')) active @endif" href="{{ route('assets.index') }}"><i class="bi bi-pc-display"></i>Activos</a>
                     <a class="sidebar-link @if(request()->routeIs('imports.*')) active @endif" href="{{ route('imports.assets.index') }}"><i class="bi bi-cloud-arrow-up"></i>Importaciones</a>
                 @endcan
                 <a class="sidebar-link @if(request()->routeIs('repairs.*')) active @endif" href="{{ route('repairs.index') }}"><i class="bi bi-tools"></i>Reparaciones</a>

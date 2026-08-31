@@ -10,4 +10,3 @@ class Location extends Model
 
     protected $guarded = [];
 }
-

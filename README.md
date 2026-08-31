@@ -7,7 +7,7 @@ Aplicación Laravel 13 para inventario institucional. Esta fase contiene únicam
 - Docker Desktop con backend Linux/WSL 2 iniciado.
 - Puerto `8080` disponible, o un valor alternativo en `APP_PORT` dentro de `.env`.
 
-No se requiere PHP, Composer ni Node instalados en Windows: se ejecutan dentro de contenedores.
+No se requiere PHP, Composer ni Node instalados en Windows: se ejecutan dentro de contenedores. Los recursos web se compilan automáticamente al levantar el proyecto; `public/build` no se sube a Git.
 
 ## Inicio local
 
@@ -39,8 +39,10 @@ La aplicación queda expuesta solo mediante el proxy en `http://localhost:8080`.
 # Registros de servicios
 docker compose logs -f proxy app queue scheduler
 
-# Pruebas y formato
-docker compose run --rm app php artisan test
+# Pruebas aisladas (SQLite en memoria; nunca usa la base local)
+docker compose --profile tools run --rm test
+
+# Formato
 docker compose run --rm app ./vendor/bin/pint --test
 
 # Reconstruir recursos frontend

@@ -30,9 +30,9 @@ class AuthenticatedSessionController extends Controller
             throw ValidationException::withMessages(['username' => 'Las credenciales no son válidas.']);
         }
         if ($user->estaBloqueado()) {
-            throw ValidationException::withMessages(['username' => 'La cuenta está bloqueada temporalmente.']);
+            throw ValidationException::withMessages(['username' => 'Las credenciales no son válidas.']);
         }
-        if (! Auth::attempt(['username' => $credentials['username'], 'password' => $credentials['password']], $request->boolean('remember'))) {
+        if (! Auth::attempt(['username' => $credentials['username'], 'password' => $credentials['password']], false)) {
             $attempts = $user->intentos_fallidos + 1;
             $user->forceFill([
                 'intentos_fallidos' => $attempts,
