@@ -31,7 +31,7 @@ class InventoryMovementController extends Controller
         return view('movements.index', compact('movements'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         Gate::authorize('gestionar-inventario');
 
@@ -42,6 +42,8 @@ class InventoryMovementController extends Controller
             'products' => $products,
             'assets' => $assets,
             'defaultItemType' => $products->isEmpty() && $assets->isNotEmpty() ? 'activo' : 'producto',
+            'defaultProductId' => $request->integer('producto') && $products->contains('id', $request->integer('producto')) ? $request->integer('producto') : null,
+            'defaultMovementType' => $request->query('tipo') === 'entrada' ? 'entrada' : null,
             'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('tipo')->orderBy('nombre')->get(),
         ]);
     }

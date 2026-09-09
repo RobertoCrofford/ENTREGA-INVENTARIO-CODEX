@@ -44,7 +44,7 @@ class ProductController extends Controller
         $scanCode = $this->scanCode($request);
         $scanCode ? $request->session()->put('pending_scan.product', $scanCode) : $request->session()->forget('pending_scan.product');
 
-        return view('products.form', ['product' => new Product, 'categories' => $this->categories(), 'warehouses' => $this->warehouses(), 'scanCode' => $scanCode]);
+        return view('products.form', ['product' => new Product, 'categories' => $this->categories(), 'warehouses' => $this->warehouses(), 'stockTotal' => 0, 'scanCode' => $scanCode]);
     }
 
     public function show(Product $product): View
@@ -89,7 +89,7 @@ class ProductController extends Controller
     {
         Gate::authorize('gestionar-inventario');
 
-        return view('products.form', ['product' => $product, 'categories' => $this->categories(), 'warehouses' => $this->warehouses()]);
+        return view('products.form', ['product' => $product, 'categories' => $this->categories(), 'warehouses' => $this->warehouses(), 'stockTotal' => $product->existencias()->sum('cantidad')]);
     }
 
     public function update(Request $request, Product $product, AuditService $audit): RedirectResponse
