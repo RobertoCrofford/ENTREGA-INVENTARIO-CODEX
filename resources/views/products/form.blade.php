@@ -10,6 +10,7 @@
 <form class="card" method="POST" action="{{ $product->exists ? route('products.update', $product) : route('products.store') }}">
     <div class="card-body">
         @csrf
+        @if($scanCode ?? null)<input type="hidden" name="codigo_escaneado" value="{{ $scanCode }}">@endif
         @if($product->exists) @method('PUT') @endif
         @if($errors->any()) <div class="alert alert-danger">{{ $errors->first() }}</div> @endif
         <div class="row g-3">

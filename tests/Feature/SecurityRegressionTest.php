@@ -89,6 +89,7 @@ class SecurityRegressionTest extends TestCase
             'numero_parte' => 'MOUSE-USB-001',
             'nombre' => 'Mouse USB',
             'costo_neto_actual' => 5990,
+            'codigo_escaneado' => 'MOUSE-USB-001',
             'cantidad_inicial' => 10,
             'bodega_inicial_id' => $warehouseId,
         ])->assertRedirect(route('products.index'));
@@ -96,6 +97,7 @@ class SecurityRegressionTest extends TestCase
         $product = Product::query()->where('numero_parte', 'MOUSE-USB-001')->firstOrFail();
         $this->assertDatabaseHas('existencias', ['producto_id' => $product->id, 'bodega_id' => $warehouseId, 'cantidad' => 10]);
         $this->assertDatabaseHas('movimientos_detalle', ['producto_id' => $product->id, 'cantidad' => 10]);
+        $this->assertDatabaseHas('codigos_escaneo', ['id' => $product->codigo_escaneo_id, 'codigo' => 'MOUSE-USB-001']);
     }
 
     public function test_an_unregistered_scan_is_carried_to_the_new_product_form(): void

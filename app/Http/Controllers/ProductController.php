@@ -61,9 +61,11 @@ class ProductController extends Controller
             $data = $this->data($request, true);
             $initialQuantity = (int) ($data['cantidad_inicial'] ?? 0);
             $initialWarehouse = $data['bodega_inicial_id'] ?? null;
-            unset($data['cantidad_inicial'], $data['bodega_inicial_id']);
+            $scanCode = $data['codigo_escaneado'] ?? $request->session()->pull('pending_scan.product');
+            $request->session()->forget('pending_scan.product');
+            unset($data['cantidad_inicial'], $data['bodega_inicial_id'], $data['codigo_escaneado']);
 
-            $product = Product::query()->create($data + ['activo' => true, 'codigo_interno' => 'PRD-'.strtoupper((string) Str::ulid()), 'codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.product')), 'creado_por' => $request->user()->id]);
+            $product = Product::query()->create($data + ['activo' => true, 'codigo_interno' => 'PRD-'.strtoupper((string) Str::ulid()), 'codigo_escaneo_id' => $this->scanCodeId($scanCode), 'creado_por' => $request->user()->id]);
 
             if ($initialQuantity > 0) {
                 $movements->createAndPublish([
@@ -117,7 +119,7 @@ class ProductController extends Controller
 
     private function data(Request $request, bool $requiresInitialStock = false): array
     {
-        return $request->validate(['categoria_id' => ['required', Rule::exists('categorias', 'id')->where('activo', true)], 'numero_parte' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'nombre' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'descripcion' => ['nullable', 'string', 'max:2000'], 'costo_neto_actual' => ['required', 'numeric', 'min:0'], 'cantidad_inicial' => [$requiresInitialStock ? 'required' : 'nullable', 'integer', 'min:'.($requiresInitialStock ? 1 : 0), 'max:100000'], 'bodega_inicial_id' => [$requiresInitialStock ? 'required' : Rule::requiredIf(fn () => (int) $request->input('cantidad_inicial', 0) > 0), 'nullable', Rule::exists('ubicaciones', 'id')->where(fn ($query) => $query->where('tipo', 'bodega')->where('activo', true))]]);
+        return $request->validate(['categoria_id' => ['required', Rule::exists('categorias', 'id')->where('activo', true)], 'numero_parte' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'nombre' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'descripcion' => ['nullable', 'string', 'max:2000'], 'costo_neto_actual' => ['required', 'numeric', 'min:0'], 'codigo_escaneado' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'cantidad_inicial' => [$requiresInitialStock ? 'required' : 'nullable', 'integer', 'min:'.($requiresInitialStock ? 1 : 0), 'max:100000'], 'bodega_inicial_id' => [$requiresInitialStock ? 'required' : Rule::requiredIf(fn () => (int) $request->input('cantidad_inicial', 0) > 0), 'nullable', Rule::exists('ubicaciones', 'id')->where(fn ($query) => $query->where('tipo', 'bodega')->where('activo', true))]]);
     }
 
     private function categories()
