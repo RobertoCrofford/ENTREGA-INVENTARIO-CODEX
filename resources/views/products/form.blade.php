@@ -4,7 +4,7 @@
 
 @section('content')
 @if($scanCode ?? null)
-    <div class="alert alert-info"><i class="bi bi-upc-scan me-1"></i>Código escaneado: <strong>{{ $scanCode }}</strong>. Se asociará al producto y queda precargado en el número de serie.</div>
+    <div class="alert alert-info"><i class="bi bi-upc-scan me-1"></i>Código escaneado: <strong>{{ $scanCode }}</strong>. Se asociará al producto y queda precargado en el número de parte o SKU.</div>
 @endif
 <h1 class="h3">{{ $product->exists ? 'Editar producto' : 'Nuevo producto' }}</h1>
 <form class="card" method="POST" action="{{ $product->exists ? route('products.update', $product) : route('products.store') }}">

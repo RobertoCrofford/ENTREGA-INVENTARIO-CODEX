@@ -98,6 +98,21 @@ class SecurityRegressionTest extends TestCase
         $this->assertDatabaseHas('movimientos_detalle', ['producto_id' => $product->id, 'cantidad' => 10]);
     }
 
+    public function test_an_unregistered_scan_is_carried_to_the_new_product_form(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $code = '6922000100999';
+
+        $this->actingAs($technician)->post(route('scan.search'), ['codigo' => $code])
+            ->assertOk()
+            ->assertSee(route('products.create', ['codigo' => $code]));
+
+        $this->actingAs($technician)->get(route('products.create', ['codigo' => $code]))
+            ->assertOk()
+            ->assertSee('Código escaneado:')
+            ->assertSee('value="'.$code.'"', false);
+    }
+
     public function test_technician_cannot_mark_an_asset_as_disposed_directly(): void
     {
         $technician = $this->user(Role::TECNICO);
