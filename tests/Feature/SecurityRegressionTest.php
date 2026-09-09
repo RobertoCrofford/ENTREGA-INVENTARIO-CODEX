@@ -38,6 +38,26 @@ class SecurityRegressionTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_only_a_superadministrator_can_access_the_audit_log(): void
+    {
+        $this->actingAs($this->user(Role::TECNICO))
+            ->get(route('audit-logs.index'))
+            ->assertForbidden();
+
+        $this->actingAs($this->user(Role::SUPERADMIN))
+            ->get(route('audit-logs.index'))
+            ->assertOk();
+    }
+
+    public function test_an_invited_user_can_consult_but_cannot_manage_inventory(): void
+    {
+        $guest = $this->user(Role::INVITADO);
+
+        $this->actingAs($guest)->get(route('products.index'))->assertOk();
+        $this->actingAs($guest)->get(route('products.create'))->assertForbidden();
+        $this->actingAs($guest)->get(route('audit-logs.index'))->assertForbidden();
+    }
+
     public function test_technician_cannot_publish_a_direct_stock_disposal(): void
     {
         $this->actingAs($this->user(Role::TECNICO))
