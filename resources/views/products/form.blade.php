@@ -21,9 +21,9 @@
             <div class="col-md-6"><label class="form-label">Costo neto</label><input class="form-control" type="number" min="0" step=".01" name="costo_neto_actual" value="{{ old('costo_neto_actual', $product->costo_neto_actual) }}" required></div>
             <div class="col-12"><label class="form-label">Descripción</label><textarea class="form-control" name="descripcion">{{ old('descripcion', $product->descripcion) }}</textarea></div>
             @if(! $product->exists)
-                <div class="col-12"><hr><h2 class="h5 mb-1">Stock inicial <span class="text-body-secondary fw-normal">(opcional)</span></h2><p class="text-body-secondary small mb-0">Si esta es una compra nueva, registra aquí las unidades recibidas. El sistema creará automáticamente una entrada en la bodega seleccionada.</p></div>
-                <div class="col-md-6"><label class="form-label">Cantidad recibida</label><input class="form-control" type="number" min="0" max="100000" name="cantidad_inicial" value="{{ old('cantidad_inicial', 0) }}"><div class="form-text">Ejemplo: 10 mouse.</div></div>
-                <div class="col-md-6"><label class="form-label">Bodega de ingreso</label><select class="form-select" name="bodega_inicial_id"><option value="">Selecciona una bodega</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}" @selected(old('bodega_inicial_id') == $warehouse->id)>{{ $warehouse->nombre }} ({{ $warehouse->codigo }})</option>@endforeach</select></div>
+                <div class="col-12"><hr><h2 class="h5 mb-1">¿Dónde quedará guardado?</h2><p class="text-body-secondary small mb-0">Completa estos datos para registrar el producto y mostrarlo inmediatamente en Bodega.</p></div>
+                <div class="col-md-6"><label class="form-label">Cantidad ingresada</label><input class="form-control" type="number" min="1" max="100000" name="cantidad_inicial" value="{{ old('cantidad_inicial') }}" placeholder="Ej.: 10" required><div class="form-text">Ejemplo: compraste 10 mouse.</div></div>
+                <div class="col-md-6"><label class="form-label">Bodega donde quedará guardado</label><select class="form-select" name="bodega_inicial_id" required><option value="">Selecciona una bodega</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}" @selected(old('bodega_inicial_id') == $warehouse->id)>{{ $warehouse->nombre }} ({{ $warehouse->codigo }})</option>@endforeach</select></div>
             @endif
         </div>
     </div>
