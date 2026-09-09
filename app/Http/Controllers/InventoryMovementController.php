@@ -35,9 +35,13 @@ class InventoryMovementController extends Controller
     {
         Gate::authorize('gestionar-inventario');
 
+        $products = Product::query()->with('categoria')->where('activo', true)->orderBy('nombre')->get();
+        $assets = Asset::query()->with(['type', 'location'])->whereHas('status', fn ($query) => $query->where('codigo', '!=', 'dado_baja'))->orderBy('activo_fijo')->get();
+
         return view('movements.form', [
-            'products' => Product::query()->with('categoria')->where('activo', true)->orderBy('nombre')->get(),
-            'assets' => Asset::query()->with(['type', 'location'])->whereHas('status', fn ($query) => $query->where('codigo', '!=', 'dado_baja'))->orderBy('activo_fijo')->get(),
+            'products' => $products,
+            'assets' => $assets,
+            'defaultItemType' => $products->isEmpty() && $assets->isNotEmpty() ? 'activo' : 'producto',
             'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('tipo')->orderBy('nombre')->get(),
         ]);
     }

@@ -24,13 +24,14 @@ class AssetController extends Controller
 
         $term = trim((string) $request->query('q', ''));
         $usage = trim((string) $request->query('uso', ''));
+        $searched = $request->boolean('buscar') || $term !== '' || $usage !== '';
         $assets = Asset::query()->with(['type', 'status', 'location'])
             ->when($term !== '', fn ($query) => $query->whereAny(['activo_fijo', 'numero_serie', 'marca', 'modelo'], 'like', "%{$term}%"))
             ->when($usage !== '', fn ($query) => $query->where('uso', $usage))
-            ->when($term === '' && $usage === '', fn ($query) => $query->whereRaw('1 = 0'))
+            ->when(! $searched, fn ($query) => $query->whereRaw('1 = 0'))
             ->orderByDesc('id')->paginate(20)->withQueryString();
 
-        return view('assets.index', compact('assets', 'term', 'usage'));
+        return view('assets.index', compact('assets', 'term', 'usage', 'searched'));
     }
 
     public function create(Request $request): View

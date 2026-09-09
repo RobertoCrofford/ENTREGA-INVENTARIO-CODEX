@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
-        Gate::before(fn (User $user) => $user->tieneRol(Role::SUPERADMIN) ? true : null);
+        Gate::before(fn (User $user, string $ability) => $ability !== 'solicitar-baja-activo' && $user->tieneRol(Role::SUPERADMIN) ? true : null);
 
         Gate::define('consultar-inventario', fn (User $user) => $user->activo);
         Gate::define('clasificar-activos', fn (User $user) => $user->activo && ! $user->tieneRol(Role::INVITADO));
@@ -39,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('generar-bitacora', fn (User $user) => false);
         Gate::define('administrar-usuarios', fn (User $user) => $user->tieneRol(Role::SUPERADMIN));
         Gate::define('gestionar-inventario', fn (User $user) => $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
+        Gate::define('solicitar-baja-activo', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
         Gate::define('autorizar-operaciones', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
         Gate::define('desactivar-productos', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
 

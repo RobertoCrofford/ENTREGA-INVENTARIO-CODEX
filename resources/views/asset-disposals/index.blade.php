@@ -5,7 +5,7 @@
 @section('content')
 <div class="mb-4"><span class="eyebrow">Gobernanza</span><h1 class="h3 mb-1">Bajas de activos</h1><p class="text-body-secondary mb-0">Toda baja requiere una solicitud y una resolución registrada.</p></div>
 
-@can('gestionar-inventario')
+@can('solicitar-baja-activo')
 <form class="card mb-4" method="POST" action="{{ route('asset-disposals.store') }}">
     @csrf
     <div class="card-header">Nueva solicitud</div>

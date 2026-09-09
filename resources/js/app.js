@@ -54,3 +54,13 @@ document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
         }).catch(() => {});
     });
 });
+
+document.querySelectorAll('form').forEach((form) => {
+    form.addEventListener('submit', () => {
+        const submitButton = form.querySelector('button[type="submit"], button:not([type])');
+        if (!submitButton || submitButton.disabled) return;
+
+        submitButton.disabled = true;
+        submitButton.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>');
+    }, { once: true });
+});

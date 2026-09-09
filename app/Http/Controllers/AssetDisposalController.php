@@ -38,7 +38,7 @@ class AssetDisposalController extends Controller
 
     public function store(Request $request, AuditService $audit): RedirectResponse
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('solicitar-baja-activo');
         $data = $request->validate([
             'activo_id' => ['required', 'exists:activos,id'],
             'motivo' => ['required', 'string', 'min:10', 'max:2000'],

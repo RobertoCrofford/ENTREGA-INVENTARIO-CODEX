@@ -68,6 +68,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('imports/assets/export', [AssetImportController::class, 'export'])->name('imports.assets.export');
         Route::get('imports/assets/template', [AssetImportController::class, 'template'])->name('imports.assets.template');
         Route::post('imports/assets/preview', [AssetImportController::class, 'preview'])->name('imports.assets.preview');
+        Route::get('imports/assets/{import}/original', [AssetImportController::class, 'original'])->name('imports.assets.original');
         Route::get('imports/assets/{import}', [AssetImportController::class, 'show'])->name('imports.assets.show');
         Route::post('imports/assets/{import}/confirm', [AssetImportController::class, 'confirm'])->name('imports.assets.confirm');
         Route::get('imports/assets/{import}/rejected', [AssetImportController::class, 'rejected'])->name('imports.assets.rejected');

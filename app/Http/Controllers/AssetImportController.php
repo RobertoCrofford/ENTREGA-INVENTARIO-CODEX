@@ -128,6 +128,16 @@ class AssetImportController extends Controller
         return view('imports.asset-preview', compact('import', 'errors'));
     }
 
+    public function original(int $import)
+    {
+        Gate::authorize('gestionar-inventario');
+        $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->firstOrFail();
+        $path = 'importaciones/'.$import->archivo_sha256.'.'.$this->extension($import->archivo_nombre);
+        abort_unless(Storage::disk('local')->exists($path), 404, 'No se encontró el archivo original de la importación.');
+
+        return Storage::disk('local')->download($path, $import->archivo_nombre);
+    }
+
     public function confirm(Request $request, int $import, AuditService $audit): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');

@@ -78,6 +78,26 @@ class SecurityRegressionTest extends TestCase
         $this->actingAs($technician)->delete(route('products.destroy', $product))->assertForbidden();
     }
 
+    public function test_creating_a_product_with_initial_stock_creates_an_inventory_entry(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $categoryId = DB::table('categorias')->value('id');
+        $warehouseId = DB::table('ubicaciones')->where('tipo', 'bodega')->value('id');
+
+        $this->actingAs($technician)->post(route('products.store'), [
+            'categoria_id' => $categoryId,
+            'numero_parte' => 'MOUSE-USB-001',
+            'nombre' => 'Mouse USB',
+            'costo_neto_actual' => 5990,
+            'cantidad_inicial' => 10,
+            'bodega_inicial_id' => $warehouseId,
+        ])->assertRedirect(route('products.index'));
+
+        $product = Product::query()->where('numero_parte', 'MOUSE-USB-001')->firstOrFail();
+        $this->assertDatabaseHas('existencias', ['producto_id' => $product->id, 'bodega_id' => $warehouseId, 'cantidad' => 10]);
+        $this->assertDatabaseHas('movimientos_detalle', ['producto_id' => $product->id, 'cantidad' => 10]);
+    }
+
     public function test_technician_cannot_mark_an_asset_as_disposed_directly(): void
     {
         $technician = $this->user(Role::TECNICO);

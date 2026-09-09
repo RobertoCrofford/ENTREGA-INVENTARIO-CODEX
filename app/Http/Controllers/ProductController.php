@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\AuditService;
+use App\Services\InventoryMovementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,7 +44,7 @@ class ProductController extends Controller
         $scanCode = $this->scanCode($request);
         $scanCode ? $request->session()->put('pending_scan.product', $scanCode) : $request->session()->forget('pending_scan.product');
 
-        return view('products.form', ['product' => new Product, 'categories' => $this->categories(), 'scanCode' => $scanCode]);
+        return view('products.form', ['product' => new Product, 'categories' => $this->categories(), 'warehouses' => $this->warehouses(), 'scanCode' => $scanCode]);
     }
 
     public function show(Product $product): View
@@ -53,11 +54,31 @@ class ProductController extends Controller
         return view('products.show', compact('product'));
     }
 
-    public function store(Request $request, AuditService $audit): RedirectResponse
+    public function store(Request $request, AuditService $audit, InventoryMovementService $movements): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $product = DB::transaction(function () use ($request) {
-            return Product::query()->create($this->data($request) + ['activo' => true, 'codigo_interno' => 'PRD-'.strtoupper((string) Str::ulid()), 'codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.product')), 'creado_por' => $request->user()->id]);
+        $product = DB::transaction(function () use ($request, $movements) {
+            $data = $this->data($request);
+            $initialQuantity = (int) ($data['cantidad_inicial'] ?? 0);
+            $initialWarehouse = $data['bodega_inicial_id'] ?? null;
+            unset($data['cantidad_inicial'], $data['bodega_inicial_id']);
+
+            $product = Product::query()->create($data + ['activo' => true, 'codigo_interno' => 'PRD-'.strtoupper((string) Str::ulid()), 'codigo_escaneo_id' => $this->scanCodeId($request->session()->pull('pending_scan.product')), 'creado_por' => $request->user()->id]);
+
+            if ($initialQuantity > 0) {
+                $movements->createAndPublish([
+                    'item_type' => 'producto',
+                    'tipo' => 'entrada',
+                    'producto_id' => $product->id,
+                    'cantidad' => $initialQuantity,
+                    'origen_id' => null,
+                    'destino_id' => $initialWarehouse,
+                    'observacion' => 'Stock inicial registrado al crear el producto.',
+                    'idempotency_key' => (string) Str::uuid(),
+                ], $request->user());
+            }
+
+            return $product;
         });
         $audit->record($request->user(), 'crear', 'producto', $product->id, after: $product->toArray());
 
@@ -68,7 +89,7 @@ class ProductController extends Controller
     {
         Gate::authorize('gestionar-inventario');
 
-        return view('products.form', ['product' => $product, 'categories' => $this->categories()]);
+        return view('products.form', ['product' => $product, 'categories' => $this->categories(), 'warehouses' => $this->warehouses()]);
     }
 
     public function update(Request $request, Product $product, AuditService $audit): RedirectResponse
@@ -96,7 +117,7 @@ class ProductController extends Controller
 
     private function data(Request $request): array
     {
-        return $request->validate(['categoria_id' => ['required', Rule::exists('categorias', 'id')->where('activo', true)], 'numero_parte' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'nombre' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'descripcion' => ['nullable', 'string', 'max:2000'], 'costo_neto_actual' => ['required', 'numeric', 'min:0']]);
+        return $request->validate(['categoria_id' => ['required', Rule::exists('categorias', 'id')->where('activo', true)], 'numero_parte' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'nombre' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'descripcion' => ['nullable', 'string', 'max:2000'], 'costo_neto_actual' => ['required', 'numeric', 'min:0'], 'cantidad_inicial' => ['nullable', 'integer', 'min:0', 'max:100000'], 'bodega_inicial_id' => [Rule::requiredIf(fn () => (int) $request->input('cantidad_inicial', 0) > 0), 'nullable', Rule::exists('ubicaciones', 'id')->where(fn ($query) => $query->where('tipo', 'bodega')->where('activo', true))]]);
     }
 
     private function categories()
@@ -105,6 +126,11 @@ class ProductController extends Controller
             ->orderByRaw('CASE WHEN nombre = ? THEN 1 ELSE 0 END', ['Otros'])
             ->orderBy('nombre')
             ->get();
+    }
+
+    private function warehouses()
+    {
+        return DB::table('ubicaciones')->where('tipo', 'bodega')->where('activo', true)->orderBy('nombre')->get(['id', 'codigo', 'nombre']);
     }
 
     private function scanCode(Request $request): ?string

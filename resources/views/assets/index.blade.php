@@ -9,6 +9,7 @@
 </div>
 
 <form class="mb-3" method="GET">
+    <input type="hidden" name="buscar" value="1">
     <div class="row g-2"><div class="col-md"><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="q" class="form-control" value="{{ $term }}" placeholder="Buscar activo fijo, serie, marca o modelo" autofocus></div></div><div class="col-md-3"><select name="uso" class="form-select"><option value="">Todos los usos</option><option value="administrativo" @selected($usage === 'administrativo')>Administrativo</option><option value="alumnos" @selected($usage === 'alumnos')>Alumnos</option><option value="docente" @selected($usage === 'docente')>Docente</option><option value="comun" @selected($usage === 'comun')>Uso común</option><option value="sin_definir" @selected($usage === 'sin_definir')>Sin definir</option></select></div><div class="col-md-auto"><button class="btn btn-outline-primary w-100" type="submit">Buscar</button></div></div>
 </form>
 
@@ -16,7 +17,7 @@
     <div class="alert alert-info d-flex align-items-start gap-2" role="status"><i class="bi bi-tags fs-5"></i><div><strong>Activos pendientes de clasificación.</strong> Revisa sus datos y selecciona <em>Editar</em> para indicar si corresponden a administrativos, alumnos, docentes o uso común.</div></div>
 @endif
 
-@if($term === '' && $usage === '')
+@if(! $searched)
     <div class="card"><div class="card-body text-center py-5 text-body-secondary"><i class="bi bi-search fs-2 d-block mb-2"></i>Ingresa un código, serie, marca o modelo para ver el detalle de un activo.</div></div>
 @elseif($assets->isEmpty())
     <div class="card"><div class="card-body text-center py-5 text-body-secondary">No se encontraron activos con los criterios seleccionados.</div></div>
