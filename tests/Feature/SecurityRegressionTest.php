@@ -58,6 +58,22 @@ class SecurityRegressionTest extends TestCase
         $this->actingAs($guest)->get(route('audit-logs.index'))->assertForbidden();
     }
 
+    public function test_notification_summary_refreshes_the_user_notifications(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        DB::table('notificaciones')->insert([
+            'usuario_id' => $technician->id,
+            'titulo' => 'Código sin registrar',
+            'mensaje' => 'Se detectó un código nuevo.',
+            'creado_at' => now(),
+        ]);
+
+        $this->actingAs($technician)->get(route('notifications.summary'))
+            ->assertOk()
+            ->assertJsonPath('unread', 1)
+            ->assertJsonPath('notifications.0.titulo', 'Código sin registrar');
+    }
+
     public function test_technician_cannot_publish_a_direct_stock_disposal(): void
     {
         $this->actingAs($this->user(Role::TECNICO))

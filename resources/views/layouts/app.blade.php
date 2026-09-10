@@ -14,11 +14,11 @@
         <span class="system-status"><span></span>Operativo</span>
         <div class="topbar-actions">
             @can('ver-notificaciones')
-                <div class="dropdown notification-menu">
+                <div class="dropdown notification-menu" data-notification-refresh-url="{{ route('notifications.summary') }}">
                     <button class="topbar-icon position-relative" type="button" data-bs-toggle="dropdown" data-notification-read-url="{{ route('notifications.read-all') }}" aria-expanded="false" aria-label="Notificaciones"><i class="bi bi-bell"></i>@if($unreadNotifications)<span class="notification-dot">{{ $unreadNotifications }}</span>@endif</button>
                     <div class="dropdown-menu dropdown-menu-end notification-dropdown">
                         <div class="notification-dropdown-header"><strong>Notificaciones</strong><span>Últimas {{ $recentNotifications->count() }}</span></div>
-                        @forelse($recentNotifications as $notification)
+                        <div data-notification-items>@forelse($recentNotifications as $notification)
                             <div class="notification-dropdown-item {{ $notification->leido_at ? '' : 'is-unread' }}">
                                 <div class="d-flex justify-content-between gap-2"><strong>{{ $notification->titulo }}</strong><time>{{ \Illuminate\Support\Carbon::parse($notification->creado_at)->format('d-m H:i') }}</time></div>
                                 <p>{{ $notification->mensaje }}</p>
@@ -26,7 +26,7 @@
                             </div>
                         @empty
                             <div class="notification-dropdown-empty">No tienes notificaciones.</div>
-                        @endforelse
+                        @endforelse</div>
                         <a class="notification-history-link" href="{{ route('notifications.index') }}">Ver historial completo <i class="bi bi-arrow-right"></i></a>
                     </div>
                 </div>

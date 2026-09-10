@@ -37,6 +37,65 @@ document.querySelectorAll('input[name], textarea[name]').forEach((field) => {
 });
 
 document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
+    const menu = button.closest('[data-notification-refresh-url]');
+    const items = menu?.querySelector('[data-notification-items]');
+    const headerCount = menu?.querySelector('.notification-dropdown-header span');
+    const refreshNotifications = async () => {
+        if (!menu || !items) return;
+
+        try {
+            const response = await fetch(menu.dataset.notificationRefreshUrl, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            let badge = button.querySelector('.notification-dot');
+            if (data.unread > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'notification-dot';
+                    button.append(badge);
+                }
+                badge.textContent = data.unread;
+            } else {
+                badge?.remove();
+            }
+            if (headerCount) headerCount.textContent = `Últimas ${data.notifications.length}`;
+            items.replaceChildren();
+            if (data.notifications.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'notification-dropdown-empty';
+                empty.textContent = 'No tienes notificaciones.';
+                items.append(empty);
+                return;
+            }
+            data.notifications.forEach((notification) => {
+                const item = document.createElement('div');
+                item.className = `notification-dropdown-item${notification.leido_at ? '' : ' is-unread'}`;
+                const heading = document.createElement('div');
+                heading.className = 'd-flex justify-content-between gap-2';
+                const title = document.createElement('strong');
+                title.textContent = notification.titulo;
+                const time = document.createElement('time');
+                time.textContent = new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(notification.creado_at));
+                const message = document.createElement('p');
+                message.textContent = notification.mensaje;
+                heading.append(title, time);
+                item.append(heading, message);
+                if (notification.url) {
+                    const link = document.createElement('a');
+                    link.href = notification.url;
+                    link.textContent = 'Abrir referencia';
+                    item.append(link);
+                }
+                items.append(item);
+            });
+        } catch (_) {}
+    };
+    refreshNotifications();
+    window.setInterval(refreshNotifications, 15000);
     button.addEventListener('shown.bs.dropdown', () => {
         const badge = button.querySelector('.notification-dot');
         if (!badge) return;
@@ -50,7 +109,10 @@ document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
             },
         }).then((response) => {
-            if (response.ok) badge.remove();
+            if (response.ok) {
+                badge.remove();
+                refreshNotifications();
+            }
         }).catch(() => {});
     });
 });

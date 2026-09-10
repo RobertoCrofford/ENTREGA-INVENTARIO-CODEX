@@ -49,6 +49,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         })->name('dashboard');
         Route::resource('users', UserController::class)->except('show', 'destroy');
         Route::put('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::get('notifications/summary', [NotificationController::class, 'summary'])->name('notifications.summary');
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('notifications/{notificationId}/attend', [NotificationController::class, 'attend'])->name('notifications.attend');

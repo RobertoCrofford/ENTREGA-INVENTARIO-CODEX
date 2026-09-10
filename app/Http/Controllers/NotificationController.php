@@ -11,6 +11,18 @@ use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
+    public function summary(): JsonResponse
+    {
+        Gate::authorize('ver-notificaciones');
+        $userId = auth()->id();
+
+        return response()->json([
+            'unread' => DB::table('notificaciones')->where('usuario_id', $userId)->whereNull('leido_at')->count(),
+            'notifications' => DB::table('notificaciones')->where('usuario_id', $userId)->orderByDesc('id')->limit(5)
+                ->get(['titulo', 'mensaje', 'url', 'leido_at', 'creado_at']),
+        ]);
+    }
+
     public function index(): View
     {
         Gate::authorize('ver-notificaciones');
