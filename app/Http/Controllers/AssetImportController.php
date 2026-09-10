@@ -225,7 +225,7 @@ class AssetImportController extends Controller
         $zip->close();
         abort_unless(count($rows) > 1, 422, 'El archivo Excel no contiene filas para importar.');
         $headers = array_map(fn ($value) => $this->normalizeHeader($value), $rows[1] ?? []);
-        abort_unless($headers === self::AUDIT_HEADERS, 422, 'La cabecera del Excel no coincide con el formato de auditoría esperado.');
+        abort_unless($headers === self::AUDIT_HEADERS, 422, 'La cabecera del Excel no coincide con el formato de auditoría esperado. Usa la opción “Descargar activos en Excel” como plantilla o verifica que la primera fila contenga las columnas requeridas.');
 
         return collect($rows)->skip(1)->map(function (array $values, int $index): array {
             $source = array_pad($values, count(self::AUDIT_HEADERS), '');
@@ -260,8 +260,11 @@ class AssetImportController extends Controller
             foreach ($xpath->query('./s:c', $row) as $cell) {
                 preg_match('/[A-Z]+/', $cell->getAttribute('r'), $matches);
                 $column = $this->columnNumber($matches[0] ?? 'A');
-                $value = $xpath->evaluate('string(s:v)', $cell);
-                if ($cell->getAttribute('t') === 's') {
+                $type = $cell->getAttribute('t');
+                $value = $type === 'inlineStr'
+                    ? $xpath->evaluate('string(s:is)', $cell)
+                    : $xpath->evaluate('string(s:v)', $cell);
+                if ($type === 's') {
                     $value = $sharedStrings[(int) $value] ?? '';
                 }
                 $values[$column] = $value;
