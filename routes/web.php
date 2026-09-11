@@ -51,6 +51,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::put('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
         Route::get('notifications/summary', [NotificationController::class, 'summary'])->name('notifications.summary');
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('notifications/{notificationId}/open', [NotificationController::class, 'open'])->name('notifications.open');
         Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('notifications/{notificationId}/attend', [NotificationController::class, 'attend'])->name('notifications.attend');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

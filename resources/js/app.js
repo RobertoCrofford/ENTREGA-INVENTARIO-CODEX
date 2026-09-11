@@ -72,8 +72,12 @@ document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
                 return;
             }
             data.notifications.forEach((notification) => {
-                const item = document.createElement('div');
+                const item = document.createElement(notification.open_url ? 'a' : 'div');
                 item.className = `notification-dropdown-item${notification.leido_at ? '' : ' is-unread'}`;
+                if (notification.open_url) {
+                    item.classList.add('notification-dropdown-link');
+                    item.href = notification.open_url;
+                }
                 const heading = document.createElement('div');
                 heading.className = 'd-flex justify-content-between gap-2';
                 const title = document.createElement('strong');
@@ -84,11 +88,11 @@ document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
                 message.textContent = notification.mensaje;
                 heading.append(title, time);
                 item.append(heading, message);
-                if (notification.url) {
-                    const link = document.createElement('a');
-                    link.href = notification.url;
-                    link.textContent = 'Abrir referencia';
-                    item.append(link);
+                if (notification.open_url) {
+                    const label = document.createElement('span');
+                    label.className = 'notification-open-label';
+                    label.textContent = 'Abrir evento →';
+                    item.append(label);
                 }
                 items.append(item);
             });
@@ -96,25 +100,6 @@ document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
     };
     refreshNotifications();
     window.setInterval(refreshNotifications, 15000);
-    button.addEventListener('shown.bs.dropdown', () => {
-        const badge = button.querySelector('.notification-dot');
-        if (!badge) return;
-
-        fetch(button.dataset.notificationReadUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-            },
-        }).then((response) => {
-            if (response.ok) {
-                badge.remove();
-                refreshNotifications();
-            }
-        }).catch(() => {});
-    });
 });
 
 document.querySelectorAll('form').forEach((form) => {

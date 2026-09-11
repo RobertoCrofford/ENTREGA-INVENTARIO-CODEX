@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
@@ -19,7 +20,12 @@ class NotificationController extends Controller
         return response()->json([
             'unread' => DB::table('notificaciones')->where('usuario_id', $userId)->whereNull('leido_at')->count(),
             'notifications' => DB::table('notificaciones')->where('usuario_id', $userId)->orderByDesc('id')->limit(5)
-                ->get(['titulo', 'mensaje', 'url', 'leido_at', 'creado_at']),
+                ->get(['id', 'titulo', 'mensaje', 'url', 'leido_at', 'creado_at'])
+                ->map(function (object $notification) {
+                    $notification->open_url = $notification->url ? route('notifications.open', $notification->id) : null;
+
+                    return $notification;
+                }),
         ]);
     }
 
@@ -43,6 +49,28 @@ class NotificationController extends Controller
         }
 
         return back()->with('success', 'Notificaciones marcadas como leídas.');
+    }
+
+    public function open(Request $request, int $notificationId): RedirectResponse
+    {
+        Gate::authorize('ver-notificaciones');
+        $notification = DB::table('notificaciones')
+            ->where('id', $notificationId)
+            ->where('usuario_id', $request->user()->id)
+            ->first();
+
+        abort_unless($notification, 404);
+        DB::table('notificaciones')->where('id', $notification->id)->whereNull('leido_at')->update(['leido_at' => now()]);
+
+        if (! $notification->url) {
+            return back()->with('warning', 'Esta notificación no tiene un evento asociado.');
+        }
+
+        if (! $this->canOpenTarget($request, $notification->url)) {
+            return back()->with('warning', 'Acceso denegado: no tienes permiso para abrir el módulo relacionado con esta notificación.');
+        }
+
+        return redirect()->to($notification->url);
     }
 
     public function attend(Request $request, int $notificationId): RedirectResponse
@@ -74,5 +102,25 @@ class NotificationController extends Controller
         });
 
         return back()->with($notification ? 'success' : 'warning', $notification ? 'Se informó al invitado que su solicitud está siendo atendida.' : 'Esta solicitud ya fue atendida o no está disponible.');
+    }
+
+    private function canOpenTarget(Request $request, string $target): bool
+    {
+        $targetHost = parse_url($target, PHP_URL_HOST);
+        $applicationHost = parse_url(config('app.url'), PHP_URL_HOST);
+        if ($targetHost && $targetHost !== $applicationHost) {
+            return false;
+        }
+
+        $path = '/'.ltrim((string) parse_url($target, PHP_URL_PATH), '/');
+        $user = $request->user();
+
+        return match (true) {
+            Str::startsWith($path, ['/assets', '/movements', '/imports']) => $user->can('gestionar-inventario'),
+            Str::startsWith($path, '/users') => $user->can('administrar-usuarios'),
+            Str::startsWith($path, '/audit-logs') => $user->can('generar-bitacora'),
+            Str::startsWith($path, '/notifications') => $user->can('ver-notificaciones'),
+            default => $user->activo,
+        };
     }
 }

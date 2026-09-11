@@ -18,7 +18,7 @@
             @elseif($notification->atendido_at)
                 <div class="small text-success mt-2">Solicitud marcada como atendida.</div>
             @endif
-            @if($notification->url)<a class="small d-inline-block mt-2" href="{{ $notification->url }}">Abrir referencia</a>@endif
+            @if($notification->url)<a class="btn btn-sm btn-outline-primary mt-2" href="{{ route('notifications.open', $notification->id) }}"><i class="bi bi-box-arrow-up-right me-1"></i>Abrir evento</a>@endif
         </div>
     @empty
         <div class="list-group-item text-body-secondary p-4 text-center">No hay notificaciones.</div>
