@@ -29,12 +29,13 @@
         @foreach($products as $product)
             <div class="col-12">
                 <article class="card"><div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3"><div><span class="eyebrow">{{ $product->codigo_interno }}</span><h2 class="h5 mb-0">{{ $product->nombre }}</h2></div>@can('gestionar-inventario')<a class="btn btn-sm btn-outline-primary" href="{{ route('products.edit', $product) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>@endcan</div>
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3"><div><span class="eyebrow">{{ $product->codigo_interno }}</span><h2 class="h5 mb-0">{{ $product->nombre }}</h2></div>@can('gestionar-inventario')<div class="d-flex gap-2 flex-wrap justify-content-end"><a class="btn btn-sm btn-outline-danger" href="{{ route('movements.create', ['producto' => $product->id, 'tipo' => 'salida']) }}"><i class="bi bi-dash-circle me-1"></i>Descontar stock</a><a class="btn btn-sm btn-outline-primary" href="{{ route('products.edit', $product) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a></div>@endcan</div>
                     <dl class="row mb-0 details-list">
                         <dt class="col-md-3">Categoría</dt><dd class="col-md-3">{{ $product->categoria?->nombre ?? '—' }}</dd>
                         <dt class="col-md-3">Número de parte</dt><dd class="col-md-3">{{ $product->numero_parte }}</dd>
                         <dt class="col-md-3">Marca / modelo</dt><dd class="col-md-3">{{ trim(($product->marca ?? '').' '.($product->modelo ?? '')) ?: '—' }}</dd>
                         <dt class="col-md-3">Costo neto</dt><dd class="col-md-3">${{ number_format($product->costo_neto_actual, 0, ',', '.') }}</dd>
+                        <dt class="col-md-3">Stock disponible</dt><dd class="col-md-3"><span class="badge text-bg-{{ ($product->stock_total ?? 0) > 0 ? 'success' : 'danger' }}">{{ $product->stock_total ?? 0 }} unidad(es)</span></dd>
                         <dt class="col-md-3">Descripción</dt><dd class="col-md-9">{{ $product->descripcion ?: '—' }}</dd>
                     </dl>
                 </div></article>

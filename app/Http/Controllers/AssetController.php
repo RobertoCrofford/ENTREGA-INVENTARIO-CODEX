@@ -24,10 +24,12 @@ class AssetController extends Controller
 
         $term = trim((string) $request->query('q', ''));
         $usage = trim((string) $request->query('uso', ''));
-        $searched = $request->boolean('buscar') || $term !== '' || $usage !== '';
+        $status = trim((string) $request->query('estado', ''));
+        $searched = $request->boolean('buscar') || $term !== '' || $usage !== '' || $status !== '';
         $assets = Asset::query()->with(['type', 'status', 'location'])
             ->when($term !== '', fn ($query) => $query->whereAny(['activo_fijo', 'numero_serie', 'marca', 'modelo'], 'like', "%{$term}%"))
             ->when($usage !== '', fn ($query) => $query->where('uso', $usage))
+            ->when($status !== '', fn ($query) => $query->whereHas('status', fn ($statuses) => $statuses->where('codigo', $status)))
             ->when(! $searched, fn ($query) => $query->whereRaw('1 = 0'))
             ->orderByDesc('id')->paginate(20)->withQueryString();
 
@@ -174,9 +176,16 @@ class AssetController extends Controller
             throw ValidationException::withMessages(['procesador' => 'El procesador es obligatorio para activos de tipo PC.']);
         }
         if (($data['responsable_nombre'] ?? null) xor ($data['responsable_email'] ?? null)) {
-            abort(422, 'El responsable exige nombre y correo.');
-        } if (($data['ubicacion_actual_id'] ?? null) && ($data['responsable_nombre'] ?? null)) {
-            abort(422, 'Ubicación y responsable no pueden coexistir.');
+            throw ValidationException::withMessages([
+                'responsable_nombre' => 'Debes ingresar el nombre y el correo del responsable.',
+                'responsable_email' => 'Debes ingresar el nombre y el correo del responsable.',
+            ]);
+        }
+        if (($data['ubicacion_actual_id'] ?? null) && ($data['responsable_nombre'] ?? null)) {
+            throw ValidationException::withMessages([
+                'ubicacion_actual_id' => 'El activo debe tener una ubicación o un responsable, no ambos.',
+                'responsable_nombre' => 'El activo debe tener una ubicación o un responsable, no ambos.',
+            ]);
         }
         if (! empty($data['ubicacion_actual_id']) && ! DB::table('ubicaciones')->where('id', $data['ubicacion_actual_id'])->where('sede_id', $data['sede_id'])->exists()) {
             throw ValidationException::withMessages(['ubicacion_actual_id' => 'La ubicación debe pertenecer a la sede seleccionada.']);

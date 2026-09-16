@@ -22,9 +22,12 @@ class ProductController extends Controller
         Gate::authorize('consultar-inventario');
 
         $term = trim((string) $request->query('q', ''));
+        $onlyOutOfStock = $request->boolean('stock_agotado');
         $products = Product::query()->with('categoria')
+            ->withSum(['existencias as stock_total' => fn ($stocks) => $stocks->where('activo', true)], 'cantidad')
             ->when($term !== '', fn ($query) => $query->whereAny(['codigo_interno', 'numero_parte', 'nombre', 'marca', 'modelo'], 'like', "%{$term}%"))
-            ->when($term === '', fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($onlyOutOfStock, fn ($query) => $query->whereDoesntHave('existencias', fn ($stocks) => $stocks->where('activo', true)->where('cantidad', '>', 0)))
+            ->when($term === '' && ! $onlyOutOfStock, fn ($query) => $query->whereRaw('1 = 0'))
             ->orderBy('nombre')->paginate(20)->withQueryString();
 
         $assetMatch = $term === '' ? null : Asset::query()

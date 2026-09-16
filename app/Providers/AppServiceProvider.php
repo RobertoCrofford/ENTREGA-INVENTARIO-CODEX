@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('generar-bitacora', fn (User $user) => $user->activo && $user->tieneRol(Role::SUPERADMIN));
         Gate::define('administrar-usuarios', fn (User $user) => $user->tieneRol(Role::SUPERADMIN));
         Gate::define('gestionar-inventario', fn (User $user) => $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
-        Gate::define('solicitar-baja-activo', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
+        Gate::define('solicitar-baja-activo', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
         Gate::define('autorizar-operaciones', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
         Gate::define('desactivar-productos', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
 
@@ -52,6 +52,14 @@ class AppServiceProvider extends ServiceProvider
                 : 0;
             $recentNotifications = $user && Schema::hasTable('notificaciones') && $user->can('ver-notificaciones')
                 ? DB::table('notificaciones')->where('usuario_id', $user->id)->orderByDesc('id')->limit(5)->get()
+                    ->map(function (object $notification) {
+                        $hasLegacyTarget = preg_match('/sobre (activo|producto) #\d+/i', $notification->mensaje) === 1;
+                        $notification->open_url = ($notification->url || $hasLegacyTarget)
+                            ? route('notifications.open', $notification->id)
+                            : null;
+
+                        return $notification;
+                    })
                 : collect();
 
             $view->with(compact('unreadNotifications', 'recentNotifications'));

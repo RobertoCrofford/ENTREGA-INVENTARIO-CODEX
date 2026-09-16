@@ -22,7 +22,7 @@ class NotificationController extends Controller
             'notifications' => DB::table('notificaciones')->where('usuario_id', $userId)->orderByDesc('id')->limit(5)
                 ->get(['id', 'titulo', 'mensaje', 'url', 'leido_at', 'creado_at'])
                 ->map(function (object $notification) {
-                    $notification->open_url = $notification->url ? route('notifications.open', $notification->id) : null;
+                    $notification->open_url = $this->targetUrl($notification) ? route('notifications.open', $notification->id) : null;
 
                     return $notification;
                 }),
@@ -34,6 +34,11 @@ class NotificationController extends Controller
         Gate::authorize('ver-notificaciones');
         $userId = auth()->id();
         $notifications = DB::table('notificaciones')->where('usuario_id', $userId)->orderByDesc('id')->paginate(30);
+        $notifications->getCollection()->transform(function (object $notification) {
+            $notification->open_url = $this->targetUrl($notification) ? route('notifications.open', $notification->id) : null;
+
+            return $notification;
+        });
         DB::table('notificaciones')->where('usuario_id', $userId)->whereNull('leido_at')->update(['leido_at' => now()]);
 
         return view('notifications.index', compact('notifications'));
@@ -62,15 +67,16 @@ class NotificationController extends Controller
         abort_unless($notification, 404);
         DB::table('notificaciones')->where('id', $notification->id)->whereNull('leido_at')->update(['leido_at' => now()]);
 
-        if (! $notification->url) {
+        $target = $this->targetUrl($notification);
+        if (! $target) {
             return back()->with('warning', 'Esta notificación no tiene un evento asociado.');
         }
 
-        if (! $this->canOpenTarget($request, $notification->url)) {
+        if (! $this->canOpenTarget($request, $target)) {
             return back()->with('warning', 'Acceso denegado: no tienes permiso para abrir el módulo relacionado con esta notificación.');
         }
 
-        return redirect()->to($notification->url);
+        return redirect()->to($target);
     }
 
     public function attend(Request $request, int $notificationId): RedirectResponse
@@ -122,5 +128,22 @@ class NotificationController extends Controller
             Str::startsWith($path, '/notifications') => $user->can('ver-notificaciones'),
             default => $user->activo,
         };
+    }
+
+    private function targetUrl(object $notification): ?string
+    {
+        if ($notification->url) {
+            return $notification->url;
+        }
+
+        if (preg_match('/sobre activo #(\d+)/i', $notification->mensaje, $match)) {
+            return route('assets.show', (int) $match[1]);
+        }
+
+        if (preg_match('/sobre producto #(\d+)/i', $notification->mensaje, $match)) {
+            return route('products.show', (int) $match[1]);
+        }
+
+        return null;
     }
 }

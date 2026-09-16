@@ -43,7 +43,7 @@ class InventoryMovementController extends Controller
             'assets' => $assets,
             'defaultItemType' => $products->isEmpty() && $assets->isNotEmpty() ? 'activo' : 'producto',
             'defaultProductId' => $request->integer('producto') && $products->contains('id', $request->integer('producto')) ? $request->integer('producto') : null,
-            'defaultMovementType' => $request->query('tipo') === 'entrada' ? 'entrada' : null,
+            'defaultMovementType' => in_array($request->query('tipo'), ['entrada', 'salida'], true) ? $request->query('tipo') : null,
             'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('tipo')->orderBy('nombre')->get(),
         ]);
     }

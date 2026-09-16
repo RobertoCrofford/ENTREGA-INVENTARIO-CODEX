@@ -10,12 +10,34 @@
     @csrf
     <div class="card-header">Nueva solicitud</div>
     <div class="card-body"><div class="row g-3">
-        <div class="col-md-4"><label class="form-label" for="activo_id">Activo</label><select class="form-select" id="activo_id" name="activo_id" required><option value="">Selecciona un activo</option>@foreach($assets as $asset)<option value="{{ $asset->id }}">{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}</option>@endforeach</select></div>
+        <div class="col-md-4"><label class="form-label" for="buscar_activo_baja">Buscar activo</label><input class="form-control mb-2" id="buscar_activo_baja" type="search" placeholder="Código, marca o modelo" autocomplete="off"><label class="form-label visually-hidden" for="activo_id">Activo seleccionado</label><select class="form-select" id="activo_id" name="activo_id" size="5" required><option value="">Selecciona un activo</option>@foreach($assets as $asset)<option value="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}">{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}</option>@endforeach</select><div id="resultado_busqueda_baja" class="form-text" aria-live="polite">Escribe para buscar un activo disponible.</div></div>
         <div class="col-md-4"><label class="form-label" for="motivo">Motivo</label><textarea class="form-control" id="motivo" name="motivo" minlength="10" maxlength="2000" required>{{ old('motivo') }}</textarea></div>
         <div class="col-md-4"><label class="form-label" for="diagnostico">Diagnóstico</label><textarea class="form-control" id="diagnostico" name="diagnostico" minlength="10" maxlength="2000" required>{{ old('diagnostico') }}</textarea></div>
     </div>@if($errors->any())<div class="alert alert-danger mt-3 mb-0">{{ $errors->first() }}</div>@endif</div>
     <div class="card-footer"><button class="btn btn-primary" @disabled($assets->isEmpty())>Enviar solicitud</button></div>
 </form>
+@endcan
+
+@can('solicitar-baja-activo')
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const search = document.getElementById('buscar_activo_baja');
+        const assets = document.getElementById('activo_id');
+        const feedback = document.getElementById('resultado_busqueda_baja');
+        if (!search || !assets || !feedback) return;
+        const options = Array.from(assets.options).filter((option) => option.value);
+        const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const filter = () => {
+            const term = normalize(search.value.trim());
+            const matches = options.filter((option) => term === '' || normalize(option.dataset.search).includes(term));
+            options.forEach((option) => option.hidden = !matches.includes(option));
+            feedback.textContent = term === '' ? `${options.length} activo(s) disponible(s).` : `${matches.length} resultado(s) encontrado(s).`;
+            if (matches.length === 1) assets.value = matches[0].value;
+        };
+        search.addEventListener('input', filter);
+        filter();
+    });
+</script>
 @endcan
 
 <div class="card"><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Activo</th><th>Solicitante</th><th>Motivo</th><th>Estado</th><th>Resolución</th></tr></thead><tbody>

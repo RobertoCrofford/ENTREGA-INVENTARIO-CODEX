@@ -48,6 +48,8 @@ class AuditService
                 'mensaje' => $message,
                 'url' => match ($entityType) {
                     'movimiento_inventario' => route('movements.index'),
+                    'producto' => $entityId ? route('products.show', $entityId) : route('products.index'),
+                    'activo' => $entityId ? route('assets.show', $entityId) : route('assets.index'),
                     'reparacion' => route('repairs.index'),
                     default => null,
                 },

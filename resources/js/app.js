@@ -111,3 +111,18 @@ document.querySelectorAll('form').forEach((form) => {
         submitButton.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>');
     }, { once: true });
 });
+
+document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    const input = document.getElementById(button.getAttribute('aria-controls'));
+    const icon = button.querySelector('i');
+    if (!input || !icon) return;
+
+    button.addEventListener('click', () => {
+        const showPassword = input.type === 'password';
+        input.type = showPassword ? 'text' : 'password';
+        icon.classList.toggle('bi-eye', !showPassword);
+        icon.classList.toggle('bi-eye-slash', showPassword);
+        button.setAttribute('aria-label', showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        button.setAttribute('title', showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    });
+});

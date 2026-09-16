@@ -16,8 +16,15 @@
     @endif
 </div>
 
-<form class="mb-3" method="GET">
-    <input name="q" class="form-control" value="{{ request('q') }}" placeholder="Buscar por activo, técnico o falla reportada">
+<form class="mb-3" method="GET" role="search">
+    <label class="visually-hidden" for="repair-search">Buscar reparaciones</label>
+    <div class="input-group">
+        <input id="repair-search" name="q" class="form-control" value="{{ request('q') }}" placeholder="Buscar por activo, técnico o falla reportada">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Buscar</button>
+        @if(request()->filled('q'))
+            <a class="btn btn-outline-secondary" href="{{ route('repairs.index') }}">Limpiar</a>
+        @endif
+    </div>
 </form>
 
 <div class="card">

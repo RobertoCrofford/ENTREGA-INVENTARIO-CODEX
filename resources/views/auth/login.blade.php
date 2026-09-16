@@ -5,5 +5,5 @@
 @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
 <form method="POST" action="{{ route('login.store') }}">@csrf
 <div class="mb-3"><label class="form-label" for="username">Usuario</label><input class="form-control" id="username" name="username" value="{{ old('username') }}" required autofocus autocomplete="username"></div>
-<div class="mb-3"><label class="form-label" for="password">Contraseña</label><input class="form-control" type="password" id="password" name="password" required autocomplete="current-password"></div>
+<div class="mb-3"><label class="form-label" for="password">Contraseña</label><div class="input-group"><input class="form-control" type="password" id="password" name="password" required autocomplete="current-password"><button class="btn btn-outline-secondary" type="button" data-password-toggle aria-controls="password" aria-label="Mostrar contraseña" title="Mostrar contraseña"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
 <button class="btn btn-primary w-100">Ingresar</button><div class="text-center mt-3"><a class="link-light small" href="{{ route('password.request') }}">¿Olvidaste tu contraseña?</a></div></form></div></section></div></div></main></body></html>
