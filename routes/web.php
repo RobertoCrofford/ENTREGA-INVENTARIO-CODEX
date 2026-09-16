@@ -4,6 +4,7 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetImportController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -61,6 +62,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('scan', [ScanController::class, 'index'])->name('scan.index');
         Route::post('scan', [ScanController::class, 'search'])->name('scan.search');
         Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
+        Route::get('events', [CalendarEventController::class, 'index'])->name('events.index');
+        Route::post('events', [CalendarEventController::class, 'store'])->name('events.store');
+        Route::post('events/import', [CalendarEventController::class, 'import'])->name('events.import');
         Route::resource('products', ProductController::class);
         Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
         Route::get('assets/{asset}/classify', [AssetController::class, 'classify'])->name('assets.classify');
