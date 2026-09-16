@@ -221,7 +221,7 @@ class CalendarEventController extends Controller
         foreach ($rows as $index => $headers) {
             $normalized = collect($headers)->map(fn ($header) => $this->header((string) $header));
             $hasDate = $normalized->contains('fecha');
-            $hasEvent = $normalized->intersect(['evento', 'nombredelaactividadevento', 'actividad', 'titulo'])->isNotEmpty();
+            $hasEvent = $normalized->intersect(['evento', 'nombredelaactividadevento', 'actividadevento', 'actividad', 'titulo'])->isNotEmpty();
             if (! $hasDate || ! $hasEvent) {
                 continue;
             }
@@ -246,7 +246,7 @@ class CalendarEventController extends Controller
     private function eventFromRow(array $row): array
     {
         $date = $this->value($row, ['fecha', 'fechaevento', 'fechainicio', 'dia', 'inicio']);
-        $title = $this->value($row, ['evento', 'nombre', 'nombreevento', 'nombredelaactividadevento', 'actividad', 'titulo', 'descripcion']);
+        $title = $this->value($row, ['evento', 'nombre', 'nombreevento', 'nombredelaactividadevento', 'actividadevento', 'actividad', 'titulo', 'descripcion']);
         if ($date === '' || $title === '') {
             return ['valid' => false, 'error' => 'debe contener al menos las columnas Fecha y Evento.'];
         }
@@ -279,7 +279,7 @@ class CalendarEventController extends Controller
             $this->value($row, ['descripcion', 'detalle', 'observacion']),
             $this->value($row, ['responsable']) !== '' ? 'Responsable: '.$this->value($row, ['responsable']) : null,
             $schedule !== '' ? 'Horario informado: '.$schedule : null,
-            $this->value($row, ['requerimientoslogisticostecnicosyobservaciones', 'requerimientos', 'logistica']) !== '' ? 'Requerimientos: '.$this->value($row, ['requerimientoslogisticostecnicosyobservaciones', 'requerimientos', 'logistica']) : null,
+            $this->value($row, ['requerimientostecnicosylogisticos', 'requerimientoslogisticostecnicosyobservaciones', 'requerimientos', 'logistica']) !== '' ? 'Requerimientos: '.$this->value($row, ['requerimientostecnicosylogisticos', 'requerimientoslogisticostecnicosyobservaciones', 'requerimientos', 'logistica']) : null,
         ])->filter()->implode("\n\n");
 
         return ['valid' => true, 'titulo' => mb_substr($title, 0, 160), 'descripcion' => $this->blankToNull($details), 'lugar' => $this->blankToNull($this->value($row, ['lugar', 'lugarespacio', 'ubicacion', 'sala'])), 'inicio_at' => $start, 'termino_at' => $end, 'todo_el_dia' => $allDay];
@@ -345,7 +345,7 @@ class CalendarEventController extends Controller
     private function timeRange(string $schedule): array
     {
         preg_match_all('/\b([01]?\d|2[0-3]):[0-5]\d\b/', $schedule, $matches);
-        if (count($matches[0]) === 2) {
+        if (count($matches[0]) >= 2) {
             return [$matches[0][0], $matches[0][1]];
         }
 
