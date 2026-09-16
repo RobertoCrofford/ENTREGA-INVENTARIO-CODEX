@@ -10,7 +10,7 @@
     @csrf
     <div class="card-header">Nueva solicitud</div>
     <div class="card-body"><div class="row g-3">
-        <div class="col-md-4"><label class="form-label" for="buscar_activo_baja">Buscar activo</label><input class="form-control mb-2" id="buscar_activo_baja" type="search" placeholder="Código, marca o modelo" autocomplete="off"><label class="form-label visually-hidden" for="activo_id">Activo seleccionado</label><select class="form-select" id="activo_id" name="activo_id" size="5" required><option value="">Selecciona un activo</option>@foreach($assets as $asset)<option value="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}">{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}</option>@endforeach</select><div id="resultado_busqueda_baja" class="form-text" aria-live="polite">Escribe para buscar un activo disponible.</div></div>
+        <div class="col-md-4"><label class="form-label" for="buscar_activo_baja">Buscar activo</label><input class="form-control mb-2" id="buscar_activo_baja" type="search" placeholder="Código, serie, marca o modelo" autocomplete="off"><input id="activo_id" name="activo_id" type="hidden" value="{{ old('activo_id') }}" required><div id="activo_seleccionado_baja" class="asset-picker-selected d-none" aria-live="polite"><div><span class="eyebrow">Activo seleccionado</span><strong></strong></div><button class="btn btn-sm btn-outline-light" id="cambiar_activo_baja" type="button">Cambiar</button></div><div id="resultados_activos_baja" class="asset-picker-results" role="listbox" aria-label="Resultados de activos">@foreach($assets as $asset)<button class="asset-picker-option" type="button" role="option" data-id="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" data-label="{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}"><strong>{{ $asset->activo_fijo }}</strong><span>{{ $asset->marca }} {{ $asset->modelo }}@if($asset->numero_serie) · Serie {{ $asset->numero_serie }}@endif</span></button>@endforeach</div><div id="resultado_busqueda_baja" class="form-text" aria-live="polite">{{ $assets->count() }} activo(s) disponible(s). Escribe para filtrar.</div>@error('activo_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
         <div class="col-md-4"><label class="form-label" for="motivo">Motivo</label><textarea class="form-control" id="motivo" name="motivo" minlength="10" maxlength="2000" required>{{ old('motivo') }}</textarea></div>
         <div class="col-md-4"><label class="form-label" for="diagnostico">Diagnóstico</label><textarea class="form-control" id="diagnostico" name="diagnostico" minlength="10" maxlength="2000" required>{{ old('diagnostico') }}</textarea></div>
     </div>@if($errors->any())<div class="alert alert-danger mt-3 mb-0">{{ $errors->first() }}</div>@endif</div>
@@ -24,18 +24,44 @@
         const search = document.getElementById('buscar_activo_baja');
         const assets = document.getElementById('activo_id');
         const feedback = document.getElementById('resultado_busqueda_baja');
-        if (!search || !assets || !feedback) return;
-        const options = Array.from(assets.options).filter((option) => option.value);
+        const results = document.getElementById('resultados_activos_baja');
+        const selected = document.getElementById('activo_seleccionado_baja');
+        const selectedLabel = selected?.querySelector('strong');
+        const change = document.getElementById('cambiar_activo_baja');
+        if (!search || !assets || !feedback || !results || !selected || !selectedLabel || !change) return;
+        const options = Array.from(results.querySelectorAll('.asset-picker-option'));
         const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const filter = () => {
             const term = normalize(search.value.trim());
             const matches = options.filter((option) => term === '' || normalize(option.dataset.search).includes(term));
             options.forEach((option) => option.hidden = !matches.includes(option));
-            feedback.textContent = term === '' ? `${options.length} activo(s) disponible(s).` : `${matches.length} resultado(s) encontrado(s).`;
-            if (matches.length === 1) assets.value = matches[0].value;
+            feedback.textContent = term === '' ? `${options.length} activo(s) disponible(s).` : `${matches.length} resultado(s) encontrado(s). Selecciona uno.`;
         };
+        const select = (option) => {
+            assets.value = option.dataset.id;
+            selectedLabel.textContent = option.dataset.label;
+            selected.classList.remove('d-none');
+            results.classList.add('d-none');
+            search.classList.add('d-none');
+            feedback.textContent = 'Activo listo para la solicitud de baja.';
+        };
+        options.forEach((option) => option.addEventListener('click', () => select(option)));
+        change.addEventListener('click', () => {
+            assets.value = '';
+            search.value = '';
+            selected.classList.add('d-none');
+            results.classList.remove('d-none');
+            search.classList.remove('d-none');
+            filter();
+            search.focus();
+        });
         search.addEventListener('input', filter);
-        filter();
+        const previous = options.find((option) => option.dataset.id === assets.value);
+        if (previous) {
+            select(previous);
+        } else {
+            filter();
+        }
     });
 </script>
 @endcan
