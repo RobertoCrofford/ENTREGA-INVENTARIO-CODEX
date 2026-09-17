@@ -47,7 +47,8 @@ class ScanController extends Controller
             if ($codeId) {
                 $query->where('codigo_escaneo_id', $codeId);
             }
-            $query->orWhere('activo_fijo', $code);
+            $query->orWhere('activo_fijo', $code)
+                ->orWhere('numero_serie', $code);
         })->first();
         $ambiguous = $product && $asset;
         if ($notifyGuest && ! $product && ! $asset && $request->user()->tieneRol(Role::INVITADO)) {
