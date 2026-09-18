@@ -30,8 +30,11 @@
     </div>
     <div class="card-footer"><button class="btn btn-primary">Guardar</button><a class="btn btn-link" href="{{ route('products.index') }}">Cancelar</a></div>
 </form>
-@if($product->exists && $stockTotal <= 0)
-    <div class="alert alert-warning mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2"><span><i class="bi bi-box-seam me-1"></i>Este producto aún no tiene existencias en una bodega.</span><a class="btn btn-warning" href="{{ route('movements.create', ['producto' => $product->id, 'tipo' => 'entrada']) }}">Registrar entrada de stock</a></div>
+@if($product->exists)
+    <div class="alert {{ $stockTotal <= 0 ? 'alert-warning' : 'alert-info' }} mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-box-seam me-1"></i>@if($stockTotal <= 0)Este producto aún no tiene existencias en una bodega.@else Existencias actuales: <strong>{{ $stockTotal }}</strong> unidad(es).@endif</span>
+        <a class="btn {{ $stockTotal <= 0 ? 'btn-warning' : 'btn-primary' }}" href="{{ route('movements.create', ['producto' => $product->id, 'tipo' => 'entrada']) }}"><i class="bi bi-plus-circle me-1"></i>Ingresar stock</a>
+    </div>
 @endif
 @if($product->exists && $product->activo && auth()->user()->can('desactivar-productos'))
 <form class="card mt-3" method="POST" action="{{ route('products.destroy', $product) }}">
