@@ -6,7 +6,7 @@
 <div class="mb-4"><span class="eyebrow">Gobernanza</span><h1 class="h3 mb-1">Bajas de activos</h1><p class="text-body-secondary mb-0">Toda baja requiere una solicitud y una resolución registrada.</p></div>
 
 @can('solicitar-baja-activo')
-<form class="card mb-4" method="POST" action="{{ route('asset-disposals.store') }}">
+<form class="card mb-4" id="formulario_baja_activo" method="POST" action="{{ route('asset-disposals.store') }}">
     @csrf
     <div class="card-header">Nueva solicitud</div>
     <div class="card-body"><div class="row g-3">
@@ -21,6 +21,7 @@
 @can('solicitar-baja-activo')
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('formulario_baja_activo');
         const search = document.getElementById('buscar_activo_baja');
         const assets = document.getElementById('activo_id');
         const feedback = document.getElementById('resultado_busqueda_baja');
@@ -28,7 +29,7 @@
         const selected = document.getElementById('activo_seleccionado_baja');
         const selectedLabel = selected?.querySelector('strong');
         const change = document.getElementById('cambiar_activo_baja');
-        if (!search || !assets || !feedback || !results || !selected || !selectedLabel || !change) return;
+        if (!form || !search || !assets || !feedback || !results || !selected || !selectedLabel || !change) return;
         const options = Array.from(results.querySelectorAll('.asset-picker-option'));
         const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const filter = () => {
@@ -45,7 +46,10 @@
             search.classList.add('d-none');
             feedback.textContent = 'Activo listo para la solicitud de baja.';
         };
-        options.forEach((option) => option.addEventListener('click', () => select(option)));
+        results.addEventListener('click', (event) => {
+            const option = event.target.closest('.asset-picker-option');
+            if (option) select(option);
+        });
         change.addEventListener('click', () => {
             assets.value = '';
             search.value = '';
@@ -56,6 +60,19 @@
             search.focus();
         });
         search.addEventListener('input', filter);
+        form.addEventListener('submit', (event) => {
+            if (!assets.value) {
+                const visibleOptions = options.filter((option) => !option.hidden);
+                if (visibleOptions.length === 1) select(visibleOptions[0]);
+            }
+            if (!assets.value) {
+                event.preventDefault();
+                feedback.textContent = 'Debes seleccionar un activo de la lista antes de enviar la solicitud.';
+                search.classList.remove('d-none');
+                results.classList.remove('d-none');
+                search.focus();
+            }
+        });
         const previous = options.find((option) => option.dataset.id === assets.value);
         if (previous) {
             select(previous);

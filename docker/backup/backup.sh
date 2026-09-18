@@ -4,10 +4,13 @@ set -eu
 backup_once() {
     timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
     target="/backups/mysql-${timestamp}.sql.gz"
+    temporary="/backups/.mysql-${timestamp}.sql"
 
     mysqldump --host="$DB_HOST" --user="$DB_USERNAME" --password="$DB_PASSWORD" \
-        --single-transaction --routines --events --databases "$DB_DATABASE" | gzip > "$target"
+        --no-tablespaces --single-transaction --routines --events --databases "$DB_DATABASE" > "$temporary"
+    gzip -c "$temporary" > "$target"
     gzip -t "$target"
+    rm -f "$temporary"
     find /backups -type f -name 'mysql-*.sql.gz' -mtime +7 -delete
 }
 

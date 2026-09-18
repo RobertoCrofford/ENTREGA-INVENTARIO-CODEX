@@ -17,6 +17,13 @@
     <div class="alert alert-info d-flex align-items-start gap-2" role="status"><i class="bi bi-tags fs-5"></i><div><strong>Activos pendientes de clasificación.</strong> Revisa sus datos y selecciona <em>Editar</em> para indicar si corresponden a administrativos, alumnos, docentes o uso común.</div></div>
 @endif
 
+@if($productMatch)
+    <div class="alert alert-warning d-flex justify-content-between align-items-center gap-3">
+        <div><i class="bi bi-box-seam me-1"></i><strong>Este código corresponde a un producto, no a un activo.</strong><br><span class="small">Producto: {{ $productMatch->nombre }} · Código: {{ $productMatch->codigo_interno }} · Categoría: {{ $productMatch->categoria?->nombre ?? '—' }}</span></div>
+        <a class="btn btn-sm btn-outline-light flex-shrink-0" href="{{ route('products.show', $productMatch) }}">Ver producto</a>
+    </div>
+@endif
+
 @if(! $searched)
     <div class="card"><div class="card-body text-center py-5 text-body-secondary"><i class="bi bi-search fs-2 d-block mb-2"></i>Ingresa un código, serie, marca o modelo para ver el detalle de un activo.</div></div>
 @elseif($assets->isEmpty())

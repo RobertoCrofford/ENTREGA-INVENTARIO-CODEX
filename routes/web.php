@@ -61,6 +61,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('audit-logs/{archiveId}/download', [AuditLogController::class, 'download'])->name('audit-logs.download');
         Route::get('scan', [ScanController::class, 'index'])->name('scan.index');
         Route::post('scan', [ScanController::class, 'search'])->name('scan.search');
+        Route::view('help', 'help.index')->name('help.index');
         Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
         Route::get('events', [CalendarEventController::class, 'index'])->name('events.index');
         Route::post('events', [CalendarEventController::class, 'store'])->name('events.store');

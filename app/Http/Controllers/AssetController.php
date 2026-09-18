@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Asset;
 use App\Models\AssetStatus;
 use App\Models\AssetType;
+use App\Models\Product;
 use App\Models\Role;
 use App\Services\AssetLifecycleService;
 use App\Services\AuditService;
@@ -32,8 +33,14 @@ class AssetController extends Controller
             ->when($status !== '', fn ($query) => $query->whereHas('status', fn ($statuses) => $statuses->where('codigo', $status)))
             ->when(! $searched, fn ($query) => $query->whereRaw('1 = 0'))
             ->orderByDesc('id')->paginate(20)->withQueryString();
+        $productMatch = $term === '' ? null : Product::query()
+            ->with('categoria')
+            ->where(fn ($query) => $query->where('codigo_interno', $term)
+                ->orWhere('numero_parte', $term)
+                ->orWhereIn('codigo_escaneo_id', DB::table('codigos_escaneo')->where('codigo', $term)->select('id')))
+            ->first();
 
-        return view('assets.index', compact('assets', 'term', 'usage', 'searched'));
+        return view('assets.index', compact('assets', 'term', 'usage', 'searched', 'productMatch'));
     }
 
     public function create(Request $request): View

@@ -55,10 +55,7 @@ class AppServiceProvider extends ServiceProvider
             $recentNotifications = $user && Schema::hasTable('notificaciones') && $user->can('ver-notificaciones')
                 ? DB::table('notificaciones')->where('usuario_id', $user->id)->orderByDesc('id')->limit(5)->get()
                     ->map(function (object $notification) {
-                        $hasLegacyTarget = preg_match('/sobre (activo|producto) #\d+/i', $notification->mensaje) === 1;
-                        $notification->open_url = ($notification->url || $hasLegacyTarget)
-                            ? route('notifications.open', $notification->id)
-                            : null;
+                        $notification->open_url = route('notifications.open', $notification->id);
 
                         return $notification;
                     })

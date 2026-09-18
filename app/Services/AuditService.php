@@ -51,6 +51,7 @@ class AuditService
                     'producto' => $entityId ? route('products.show', $entityId) : route('products.index'),
                     'activo' => $entityId ? route('assets.show', $entityId) : route('assets.index'),
                     'reparacion' => route('repairs.index'),
+                    'solicitud_baja_activo' => route('asset-disposals.index'),
                     default => null,
                 },
                 'creado_at' => now(),

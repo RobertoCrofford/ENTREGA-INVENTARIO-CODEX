@@ -22,7 +22,7 @@ class NotificationController extends Controller
             'notifications' => DB::table('notificaciones')->where('usuario_id', $userId)->orderByDesc('id')->limit(5)
                 ->get(['id', 'titulo', 'mensaje', 'url', 'leido_at', 'creado_at'])
                 ->map(function (object $notification) {
-                    $notification->open_url = $this->targetUrl($notification) ? route('notifications.open', $notification->id) : null;
+                    $notification->open_url = route('notifications.open', $notification->id);
 
                     return $notification;
                 }),
@@ -35,7 +35,7 @@ class NotificationController extends Controller
         $userId = auth()->id();
         $notifications = DB::table('notificaciones')->where('usuario_id', $userId)->orderByDesc('id')->paginate(30);
         $notifications->getCollection()->transform(function (object $notification) {
-            $notification->open_url = $this->targetUrl($notification) ? route('notifications.open', $notification->id) : null;
+            $notification->open_url = route('notifications.open', $notification->id);
 
             return $notification;
         });
@@ -142,6 +142,10 @@ class NotificationController extends Controller
 
         if (preg_match('/sobre producto #(\d+)/i', $notification->mensaje, $match)) {
             return route('products.show', (int) $match[1]);
+        }
+
+        if (preg_match('/sobre solicitud baja activo #(\d+)/i', $notification->mensaje)) {
+            return route('asset-disposals.index');
         }
 
         return null;
