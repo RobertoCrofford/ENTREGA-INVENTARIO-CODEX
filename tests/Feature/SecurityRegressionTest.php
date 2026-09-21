@@ -55,6 +55,45 @@ class SecurityRegressionTest extends TestCase
         $this->get(route('login'))->assertOk()->assertDontSee('Configurar primera cuenta');
     }
 
+    public function test_recovery_code_can_restore_a_superadministrator_when_none_remain(): void
+    {
+        config(['app.admin_recovery_code' => 'codigo-de-recuperacion-seguro']);
+        $this->user(Role::TECNICO);
+
+        $this->get(route('login'))->assertOk()->assertSee('Recuperar administración');
+        $this->post(route('admin-recovery.store'), [
+            'recovery_code' => 'codigo-de-recuperacion-seguro',
+            'name' => 'Administrador Recuperado',
+            'email' => 'recuperado@example.test',
+            'username' => 'administrador_recuperado',
+            'password' => 'Recuperacion2026.',
+            'password_confirmation' => 'Recuperacion2026.',
+        ])->assertRedirect(route('login'));
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'administrador_recuperado',
+            'rol_id' => Role::query()->where('codigo', Role::SUPERADMIN)->value('id'),
+        ]);
+        $this->get(route('admin-recovery.create'))->assertNotFound();
+    }
+
+    public function test_recovery_requires_the_configured_secret_code(): void
+    {
+        config(['app.admin_recovery_code' => 'codigo-de-recuperacion-seguro']);
+        $this->user(Role::TECNICO);
+
+        $this->post(route('admin-recovery.store'), [
+            'recovery_code' => 'incorrecto',
+            'name' => 'Administrador Recuperado',
+            'email' => 'recuperado@example.test',
+            'username' => 'administrador_recuperado',
+            'password' => 'Recuperacion2026.',
+            'password_confirmation' => 'Recuperacion2026.',
+        ])->assertSessionHasErrors('recovery_code');
+
+        $this->assertDatabaseMissing('users', ['username' => 'administrador_recuperado']);
+    }
+
     public function test_director_cannot_administer_users(): void
     {
         $this->actingAs($this->user(Role::DIRECTOR_TECNICO))

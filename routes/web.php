@@ -6,6 +6,7 @@ use App\Http\Controllers\AssetImportController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\AdminRecoveryController;
 use App\Http\Controllers\Auth\InitialSetupController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -28,6 +29,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:login')->name('login.store');
     Route::get('/setup', [InitialSetupController::class, 'create'])->name('setup.create');
     Route::post('/setup', [InitialSetupController::class, 'store'])->middleware('throttle:3,1')->name('setup.store');
+    Route::get('/recover-admin', [AdminRecoveryController::class, 'create'])->name('admin-recovery.create');
+    Route::post('/recover-admin', [AdminRecoveryController::class, 'store'])->middleware('throttle:3,1')->name('admin-recovery.store');
     Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->middleware('throttle:6,1')->name('password.email');
     Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');

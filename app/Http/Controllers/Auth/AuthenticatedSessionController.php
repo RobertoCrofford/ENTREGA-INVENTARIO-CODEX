@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\SessionLimitService;
 use Illuminate\Http\RedirectResponse;
@@ -17,6 +18,9 @@ class AuthenticatedSessionController extends Controller
     {
         return Auth::check() ? redirect()->route('dashboard') : view('auth.login', [
             'canSetupInitialUser' => User::query()->doesntExist(),
+            'canRecoverAdmin' => User::query()->exists()
+                && ! User::query()->whereHas('rol', fn ($role) => $role->where('codigo', Role::SUPERADMIN))->exists()
+                && filled(config('app.admin_recovery_code')),
         ]);
     }
 

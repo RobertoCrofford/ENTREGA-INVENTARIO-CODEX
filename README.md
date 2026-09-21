@@ -39,6 +39,8 @@ Al iniciar una base de datos vacía, el proyecto prepara automáticamente los ro
 
 La opción desaparece en forma automática apenas se guarda la primera cuenta. Desde ese momento, los demás usuarios se crean en **Usuarios** con una cuenta superadministradora; no se necesita usar consola ni ChatGPT.
 
+Antes de publicar el servidor, define en su archivo `.env` un `ADMIN_RECOVERY_CODE` largo, único y guardado en un lugar seguro. Si alguna vez quedaran usuarios pero ningún superadministrador, el acceso mostrará **Recuperar administración**; al ingresar ese código se podrá crear un nuevo superadministrador desde el navegador. El código nunca se muestra en la aplicación.
+
 ## Operación habitual
 
 ```powershell
