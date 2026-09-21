@@ -30,6 +30,8 @@ services:
         condition: service_healthy
       frontend:
         condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./:/var/www/html
       - app_storage:/var/www/html/storage
@@ -50,7 +52,7 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     env_file: .env
-    command: ["php", "artisan", "migrate", "--force", "--no-interaction"]
+    command: ["sh", "-c", "php artisan migrate --force --no-interaction && php artisan db:seed --force --no-interaction"]
     depends_on:
       database:
         condition: service_healthy

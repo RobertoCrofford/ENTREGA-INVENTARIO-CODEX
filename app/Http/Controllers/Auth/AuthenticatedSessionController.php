@@ -15,7 +15,9 @@ class AuthenticatedSessionController extends Controller
 {
     public function create(): View|RedirectResponse
     {
-        return Auth::check() ? redirect()->route('dashboard') : view('auth.login');
+        return Auth::check() ? redirect()->route('dashboard') : view('auth.login', [
+            'canSetupInitialUser' => User::query()->doesntExist(),
+        ]);
     }
 
     public function store(Request $request, SessionLimitService $sessionLimit): RedirectResponse

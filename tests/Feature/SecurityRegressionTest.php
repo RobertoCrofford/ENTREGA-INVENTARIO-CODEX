@@ -31,6 +31,30 @@ class SecurityRegressionTest extends TestCase
         $this->assertSame(':memory:', config('database.connections.sqlite.database'));
     }
 
+    public function test_first_superadministrator_can_be_configured_once_from_the_browser(): void
+    {
+        $this->get(route('login'))->assertOk()->assertSee('Configurar primera cuenta');
+        $this->get(route('setup.create'))->assertOk();
+
+        $this->post(route('setup.store'), [
+            'name' => 'Roberto Crofford',
+            'email' => 'roberto@example.test',
+            'username' => 'roberto',
+            'password' => 'Roberto1988.',
+            'password_confirmation' => 'Roberto1988.',
+        ])->assertRedirect(route('login'));
+
+        $this->assertDatabaseHas('users', [
+            'name' => 'Roberto Crofford',
+            'username' => 'roberto',
+            'activo' => true,
+            'debe_cambiar_password' => false,
+            'rol_id' => Role::query()->where('codigo', Role::SUPERADMIN)->value('id'),
+        ]);
+        $this->get(route('setup.create'))->assertNotFound();
+        $this->get(route('login'))->assertOk()->assertDontSee('Configurar primera cuenta');
+    }
+
     public function test_director_cannot_administer_users(): void
     {
         $this->actingAs($this->user(Role::DIRECTOR_TECNICO))

@@ -33,6 +33,12 @@ No se requiere PHP, Composer ni Node instalados en Windows: se ejecutan dentro d
 
 La aplicación queda expuesta solo mediante el proxy en `http://localhost:8080`. MySQL pertenece a la red interna de Docker y no publica puertos al host.
 
+## Primera cuenta en un servidor nuevo
+
+Al iniciar una base de datos vacía, el proyecto prepara automáticamente los roles, las bodegas y los catálogos necesarios. Luego abre la dirección del sistema y, en la pantalla de acceso, selecciona **Configurar primera cuenta**. Completa los datos solicitados y se creará el primer **superadministrador** desde el navegador.
+
+La opción desaparece en forma automática apenas se guarda la primera cuenta. Desde ese momento, los demás usuarios se crean en **Usuarios** con una cuenta superadministradora; no se necesita usar consola ni ChatGPT.
+
 ## Operación habitual
 
 ```powershell
