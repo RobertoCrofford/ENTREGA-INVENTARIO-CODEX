@@ -41,7 +41,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('generar-bitacora', fn (User $user) => $user->activo && $user->tieneRol(Role::SUPERADMIN));
         Gate::define('administrar-usuarios', fn (User $user) => $user->tieneRol(Role::SUPERADMIN));
         Gate::define('gestionar-inventario', fn (User $user) => $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
-        Gate::define('solicitar-baja-activo', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
+        Gate::define('solicitar-baja-activo', fn (User $user) => $user->activo && $user->tieneRol(Role::INVITADO, Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
         Gate::define('autorizar-operaciones', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
         Gate::define('desactivar-productos', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
 

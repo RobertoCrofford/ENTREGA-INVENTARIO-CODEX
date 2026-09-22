@@ -21,7 +21,7 @@ class NotifyTodayEvents extends Command
 
             return self::FAILURE;
         }
-        $events = DB::table('eventos_calendario')->whereDate('inicio_at', $date)->orderBy('inicio_at')->get();
+        $events = DB::table('eventos_calendario')->where('estado', 'programado')->whereDate('inicio_at', $date)->orderBy('inicio_at')->get();
         $users = DB::table('users')->where('activo', true)->pluck('id');
         $sent = 0;
 

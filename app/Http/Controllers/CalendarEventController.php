@@ -38,7 +38,7 @@ class CalendarEventController extends Controller
             'selectedDate' => $selectedDate,
             'selectedEvents' => $selectedDate ? $eventsByDay->get($selectedDate, collect()) : collect(),
             'weeks' => $this->weeks($month),
-            'upcomingEvents' => DB::table('eventos_calendario')->where('inicio_at', '>=', now()->startOfDay())->orderBy('inicio_at')->limit(8)->get(),
+            'upcomingEvents' => DB::table('eventos_calendario')->where('estado', 'programado')->where('inicio_at', '>=', now()->startOfDay())->orderBy('inicio_at')->limit(8)->get(),
         ]);
     }
 
@@ -125,6 +125,37 @@ class CalendarEventController extends Controller
         }
 
         return redirect()->route('events.index')->with('success', $message);
+    }
+
+    public function cancel(Request $request, int $event, AuditService $audit): RedirectResponse
+    {
+        Gate::authorize('gestionar-eventos');
+        $data = $request->validate([
+            'motivo_cancelacion' => ['required', 'in:reprogramado,disponibilidad,suspendido,registro_error,duplicado,no_realizado,otro'],
+            'observacion_cancelacion' => ['nullable', 'string', 'max:1000', 'required_if:motivo_cancelacion,otro'],
+        ]);
+        $calendarEvent = DB::table('eventos_calendario')->find($event);
+        abort_unless($calendarEvent, 404);
+        if ($calendarEvent->estado === 'cancelado') {
+            return redirect()->route('events.index', ['mes' => Carbon::parse($calendarEvent->inicio_at)->format('Y-m'), 'dia' => Carbon::parse($calendarEvent->inicio_at)->toDateString()])
+                ->with('warning', 'Este evento ya estaba cancelado.');
+        }
+
+        $reason = $this->cancellationReason($data['motivo_cancelacion']);
+        $observation = $this->blankToNull($data['observacion_cancelacion'] ?? null);
+        DB::table('eventos_calendario')->where('id', $event)->update([
+            'estado' => 'cancelado',
+            'motivo_cancelacion' => $data['motivo_cancelacion'],
+            'observacion_cancelacion' => $observation,
+            'cancelado_at' => now(),
+            'cancelado_por' => $request->user()->id,
+            'updated_at' => now(),
+        ]);
+        $audit->record($request->user(), 'cancelar', 'evento_calendario', $event, after: ['titulo' => $calendarEvent->titulo, 'estado' => 'cancelado', 'motivo' => $reason], reason: $observation ? $reason.': '.$observation : $reason, notify: false);
+        $this->notifyUsers('Evento cancelado', "Se canceló el evento: {$calendarEvent->titulo}. Motivo: {$reason}.", route('events.index', ['mes' => Carbon::parse($calendarEvent->inicio_at)->format('Y-m'), 'dia' => Carbon::parse($calendarEvent->inicio_at)->toDateString()]));
+
+        return redirect()->route('events.index', ['mes' => Carbon::parse($calendarEvent->inicio_at)->format('Y-m'), 'dia' => Carbon::parse($calendarEvent->inicio_at)->toDateString()])
+            ->with('success', 'Evento cancelado. Se conservó en el calendario y en la bitácora.');
     }
 
     private function month(?string $value): Carbon
@@ -380,6 +411,19 @@ class CalendarEventController extends Controller
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function cancellationReason(string $value): string
+    {
+        return [
+            'reprogramado' => 'Reprogramado para otra fecha',
+            'disponibilidad' => 'Falta de disponibilidad de sala o equipo',
+            'suspendido' => 'Actividad suspendida',
+            'registro_error' => 'Evento registrado por error',
+            'duplicado' => 'Evento duplicado',
+            'no_realizado' => 'Actividad no realizada',
+            'otro' => 'Otro motivo',
+        ][$value];
     }
 
     private function notifyUsers(string $title, string $message, string $url): void

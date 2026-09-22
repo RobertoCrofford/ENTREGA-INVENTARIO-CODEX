@@ -137,6 +137,34 @@ class SecurityRegressionTest extends TestCase
             ->assertJsonPath('notifications.0.titulo', 'Código sin registrar');
     }
 
+    public function test_technician_can_cancel_an_event_with_a_reason_without_deleting_its_history(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $eventId = DB::table('eventos_calendario')->insertGetId([
+            'titulo' => 'Capacitación de inventario',
+            'inicio_at' => now()->addWeek(),
+            'termino_at' => now()->addWeek()->addHour(),
+            'todo_el_dia' => false,
+            'origen' => 'manual',
+            'estado' => 'programado',
+            'creado_por' => $technician->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($technician)->post(route('events.cancel', $eventId), [
+            'motivo_cancelacion' => 'disponibilidad',
+            'observacion_cancelacion' => 'La sala quedó reservada para una actividad institucional.',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('eventos_calendario', [
+            'id' => $eventId,
+            'estado' => 'cancelado',
+            'motivo_cancelacion' => 'disponibilidad',
+            'cancelado_por' => $technician->id,
+        ]);
+    }
+
     public function test_technician_cannot_publish_a_direct_stock_disposal(): void
     {
         $this->actingAs($this->user(Role::TECNICO))
@@ -225,6 +253,26 @@ class SecurityRegressionTest extends TestCase
         ])->assertSessionHasErrors('estado');
 
         $this->assertSame('operativo', $asset->fresh()->status->codigo);
+    }
+
+    public function test_invited_user_can_request_a_disposal_and_notifies_the_director_and_superadministrator(): void
+    {
+        $guest = $this->user(Role::INVITADO);
+        $director = $this->user(Role::DIRECTOR_TECNICO);
+        $superadministrator = $this->user(Role::SUPERADMIN);
+        $asset = $this->asset($guest);
+
+        $this->actingAs($guest)->post(route('asset-disposals.store'), [
+            'activo_id' => $asset->id,
+            'motivo' => 'El equipo presenta un daño físico que impide su uso seguro.',
+            'diagnostico' => 'Se confirmó que la reparación no es viable por el daño de sus componentes.',
+        ])->assertRedirect();
+
+        $requestId = DB::table('solicitudes_baja_activo')->where('activo_id', $asset->id)->value('id');
+        $this->assertDatabaseHas('solicitudes_baja_activo', ['id' => $requestId, 'solicitado_por' => $guest->id, 'estado' => 'pendiente']);
+        $this->assertDatabaseHas('notificaciones', ['usuario_id' => $director->id, 'titulo' => 'Solicitud de baja pendiente']);
+        $this->assertDatabaseHas('notificaciones', ['usuario_id' => $superadministrator->id, 'titulo' => 'Solicitud de baja pendiente']);
+        $this->assertDatabaseMissing('notificaciones', ['usuario_id' => $guest->id, 'titulo' => 'Solicitud de baja pendiente']);
     }
 
     public function test_asset_disposal_requires_and_records_director_approval(): void

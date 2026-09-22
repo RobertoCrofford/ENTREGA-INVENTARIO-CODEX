@@ -61,7 +61,8 @@ class AssetDisposalController extends Controller
                 'updated_at' => now(),
             ]);
         });
-        $audit->record($request->user(), 'solicitar', 'solicitud_baja_activo', $requestId, reason: $data['motivo']);
+        $audit->record($request->user(), 'solicitar', 'solicitud_baja_activo', $requestId, reason: $data['motivo'], notify: false);
+        $this->notifyApprovers($requestId, $request->user()->name, $data['activo_id']);
 
         return back()->with('success', 'Solicitud de baja enviada para aprobación.');
     }
@@ -100,5 +101,27 @@ class AssetDisposalController extends Controller
         abort_unless($record && $record->estado_pdf === 'generado' && $record->pdf_path && Storage::disk('local')->exists($record->pdf_path), 404);
 
         return Storage::disk('local')->download($record->pdf_path, 'acta-baja-activo-'.$disposal.'.pdf');
+    }
+
+    private function notifyApprovers(int $requestId, string $requesterName, int $assetId): void
+    {
+        $assetCode = DB::table('activos')->where('id', $assetId)->value('activo_fijo') ?: "activo #{$assetId}";
+        $recipients = DB::table('users')
+            ->join('roles', 'roles.id', '=', 'users.rol_id')
+            ->where('users.activo', true)
+            ->whereIn('roles.codigo', [Role::SUPERADMIN, Role::DIRECTOR_TECNICO])
+            ->pluck('users.id');
+        $now = now();
+        $notifications = $recipients->map(fn (int $userId) => [
+            'usuario_id' => $userId,
+            'titulo' => 'Solicitud de baja pendiente',
+            'mensaje' => "{$requesterName} solicitó la baja del activo {$assetCode}. Requiere revisión y aprobación.",
+            'url' => route('asset-disposals.index'),
+            'creado_at' => $now,
+        ])->all();
+
+        if ($notifications) {
+            DB::table('notificaciones')->insert($notifications);
+        }
     }
 }

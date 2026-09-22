@@ -72,6 +72,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('events', [CalendarEventController::class, 'index'])->name('events.index');
         Route::post('events', [CalendarEventController::class, 'store'])->name('events.store');
         Route::post('events/import', [CalendarEventController::class, 'import'])->name('events.import');
+        Route::post('events/{event}/cancel', [CalendarEventController::class, 'cancel'])->name('events.cancel');
         Route::resource('products', ProductController::class);
         Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
         Route::get('assets/{asset}/classify', [AssetController::class, 'classify'])->name('assets.classify');
