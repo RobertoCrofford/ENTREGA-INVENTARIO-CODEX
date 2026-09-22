@@ -48,17 +48,17 @@
             <div class="sidebar-section">Operación</div>
             <nav class="sidebar-nav">
                 <a class="sidebar-link @if(request()->routeIs('dashboard')) active @endif" href="{{ route('dashboard') }}"><i class="bi bi-grid-1x2"></i>Inicio</a>
-                <a class="sidebar-link @if(request()->routeIs('scan.*')) active @endif" href="{{ route('scan.index') }}"><i class="bi bi-upc-scan"></i>Escanear</a>
+                @can('escanear-inventario')<a class="sidebar-link @if(request()->routeIs('scan.*')) active @endif" href="{{ route('scan.index') }}"><i class="bi bi-upc-scan"></i>Escanear</a>@endcan
                 <a class="sidebar-link @if(request()->routeIs('events.*')) active @endif" href="{{ route('events.index') }}"><i class="bi bi-calendar-event"></i>Eventos</a>
-                <a class="sidebar-link @if(request()->routeIs('products.*')) active @endif" href="{{ route('products.index') }}"><i class="bi bi-box-seam"></i>Productos</a>
-                <a class="sidebar-link @if(request()->routeIs('assets.*')) active @endif" href="{{ route('assets.index') }}"><i class="bi bi-pc-display"></i>Activos</a>
-                <a class="sidebar-link @if(request()->routeIs('asset-disposals.*')) active @endif" href="{{ route('asset-disposals.index') }}"><i class="bi bi-clipboard-x"></i>Bajas de activos</a>
+                @can('consultar-inventario')<a class="sidebar-link @if(request()->routeIs('products.*')) active @endif" href="{{ route('products.index') }}"><i class="bi bi-box-seam"></i>Productos</a>
+                <a class="sidebar-link @if(request()->routeIs('assets.*')) active @endif" href="{{ route('assets.index') }}"><i class="bi bi-pc-display"></i>Activos</a>@endcan
+                @can('solicitar-baja-activo')<a class="sidebar-link @if(request()->routeIs('asset-disposals.*')) active @endif" href="{{ route('asset-disposals.index') }}"><i class="bi bi-clipboard-x"></i>Bajas de activos</a>@endcan
                 @can('gestionar-inventario')
                     <a class="sidebar-link @if(request()->routeIs('movements.*')) active @endif" href="{{ route('movements.index') }}"><i class="bi bi-arrow-left-right"></i>Movimientos</a>
                     <a class="sidebar-link @if(request()->routeIs('imports.*')) active @endif" href="{{ route('imports.assets.index') }}"><i class="bi bi-cloud-arrow-up"></i>Importaciones</a>
                 @endcan
-                <a class="sidebar-link @if(request()->routeIs('repairs.*')) active @endif" href="{{ route('repairs.index') }}"><i class="bi bi-tools"></i>Reparaciones</a>
-                <a class="sidebar-link @if(request()->routeIs('warehouses.*')) active @endif" href="{{ route('warehouses.index') }}"><i class="bi bi-building"></i>Bodega</a>
+                @can('consultar-inventario')<a class="sidebar-link @if(request()->routeIs('repairs.*')) active @endif" href="{{ route('repairs.index') }}"><i class="bi bi-tools"></i>Reparaciones</a>
+                <a class="sidebar-link @if(request()->routeIs('warehouses.*')) active @endif" href="{{ route('warehouses.index') }}"><i class="bi bi-building"></i>Bodega</a>@endcan
                 <a class="sidebar-link @if(request()->routeIs('help.*')) active @endif" href="{{ route('help.index') }}"><i class="bi bi-question-circle"></i>Ayuda</a>
             </nav>
             @canany(['administrar-usuarios', 'generar-bitacora'])

@@ -14,7 +14,7 @@ class ScanController extends Controller
 {
     public function index(Request $request): View
     {
-        Gate::authorize('consultar-inventario');
+        Gate::authorize('escanear-inventario');
 
         $code = $request->query('codigo');
         if ($code !== null) {
@@ -28,7 +28,7 @@ class ScanController extends Controller
 
     public function search(Request $request): View
     {
-        Gate::authorize('consultar-inventario');
+        Gate::authorize('escanear-inventario');
         $data = $request->validate(['codigo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/']]);
 
         return $this->result($request, trim($data['codigo']), true);

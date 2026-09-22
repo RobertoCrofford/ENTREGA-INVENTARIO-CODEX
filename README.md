@@ -76,6 +76,16 @@ Para reiniciar desde cero en desarrollo se deben detener los servicios y elimina
 
 Los valores de `.env.example` son exclusivos para desarrollo. Producción requiere secretos propios, HTTPS configurado en el proxy, correo institucional y un destino externo cifrado y verificado para respaldos.
 
+## Publicación segura en servidor
+
+1. Copia `.env.production.example` como `.env` en el servidor. Nunca copies el `.env` local ni subas ese archivo a Git.
+2. Genera `APP_KEY` con `docker compose run --rm app php artisan key:generate`, reemplaza todas las claves `CAMBIAR...` por secretos únicos y guarda `ADMIN_RECOVERY_CODE` fuera del servidor.
+3. Publica el sitio detrás de un proxy HTTPS (por ejemplo, Nginx, Caddy o el servicio del proveedor). El proxy debe redirigir HTTP a HTTPS y entregar el tráfico a este proyecto por la red privada; no expongas el puerto `8080` directamente a Internet.
+4. Configura el SMTP institucional y realiza una prueba de recuperación de contraseña antes de abrir el sistema a usuarios.
+5. En cada actualización, ejecuta `docker compose up --build -d`, luego `docker compose exec app php artisan optimize:clear` y revisa `https://tu-dominio/up`. El contenedor reconoce los cambios de código sin conservar rutas o vistas antiguas.
+
+Los respaldos diarios se crean de forma temporal y se publican solo después de verificarse. La carpeta `storage/backups` está excluida del repositorio. Para producción, cifra la copia y envíala a un segundo destino con acceso restringido; conserva y prueba periódicamente una restauración.
+
 ## Restauración verificada (entorno vacío)
 
 La restauración se realiza únicamente con servicios detenidos y sobre una base de datos de destino creada para ese fin. No ejecute este procedimiento sobre la base productiva sin una ventana de mantenimiento y una copia adicional verificada.

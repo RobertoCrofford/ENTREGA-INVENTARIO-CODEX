@@ -112,13 +112,44 @@ class SecurityRegressionTest extends TestCase
             ->assertOk();
     }
 
-    public function test_an_invited_user_can_consult_but_cannot_manage_inventory(): void
+    public function test_an_invited_user_can_scan_and_request_disposals_but_cannot_consult_or_export_inventory(): void
     {
         $guest = $this->user(Role::INVITADO);
 
-        $this->actingAs($guest)->get(route('products.index'))->assertOk();
+        $this->actingAs($guest)->get(route('scan.index'))->assertOk();
+        $this->actingAs($guest)->get(route('products.index'))->assertForbidden();
         $this->actingAs($guest)->get(route('products.create'))->assertForbidden();
+        $this->actingAs($guest)->get(route('imports.assets.export'))->assertForbidden();
         $this->actingAs($guest)->get(route('audit-logs.index'))->assertForbidden();
+    }
+
+    public function test_invited_user_only_sees_their_own_disposal_requests(): void
+    {
+        $guest = $this->user(Role::INVITADO);
+        $technician = $this->user(Role::TECNICO);
+        $ownAsset = $this->asset($guest);
+        $otherAsset = $this->asset($technician);
+        $now = now();
+        DB::table('solicitudes_baja_activo')->insert([
+            ['activo_id' => $ownAsset->id, 'estado' => 'pendiente', 'motivo' => 'Solicitud del invitado', 'diagnostico' => 'Diagnóstico propio', 'solicitado_por' => $guest->id, 'solicitado_at' => $now, 'created_at' => $now, 'updated_at' => $now],
+            ['activo_id' => $otherAsset->id, 'estado' => 'pendiente', 'motivo' => 'Solicitud de otro usuario', 'diagnostico' => 'Diagnóstico ajeno', 'solicitado_por' => $technician->id, 'solicitado_at' => $now, 'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        $this->actingAs($guest)->get(route('asset-disposals.index'))
+            ->assertOk()
+            ->assertSee($ownAsset->activo_fijo)
+            ->assertDontSee($otherAsset->activo_fijo);
+    }
+
+    public function test_invited_dashboard_does_not_expose_operational_inventory_summary(): void
+    {
+        $guest = $this->user(Role::INVITADO);
+        $this->asset($guest);
+
+        $this->actingAs($guest)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Acceso de invitado')
+            ->assertDontSee('Movimientos recientes');
     }
 
     public function test_notification_summary_refreshes_the_user_notifications(): void
@@ -163,6 +194,21 @@ class SecurityRegressionTest extends TestCase
             'motivo_cancelacion' => 'disponibilidad',
             'cancelado_por' => $technician->id,
         ]);
+    }
+
+    public function test_calendar_renders_the_selected_day_without_an_error(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $date = now()->addMonth()->startOfDay();
+        DB::table('eventos_calendario')->insert([
+            'titulo' => 'Prueba de calendario', 'inicio_at' => $date, 'termino_at' => $date->copy()->endOfDay(),
+            'todo_el_dia' => true, 'origen' => 'manual', 'estado' => 'programado', 'creado_por' => $technician->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($technician)->get(route('events.index', ['mes' => $date->format('Y-m'), 'dia' => $date->toDateString()]))
+            ->assertOk()
+            ->assertSee('Prueba de calendario');
     }
 
     public function test_technician_cannot_publish_a_direct_stock_disposal(): void

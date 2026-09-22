@@ -16,6 +16,12 @@ use ZipArchive;
 
 class AssetImportController extends Controller
 {
+    private const MAX_XLSX_ENTRIES = 100;
+
+    private const MAX_XLSX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024;
+
+    private const MAX_XLSX_XML_BYTES = 50 * 1024 * 1024;
+
     private const HEADERS = ['activo_fijo', 'sede_codigo', 'tipo_codigo', 'estado_codigo', 'uso', 'ubicacion_codigo', 'numero_serie', 'marca', 'modelo', 'costo_neto', 'responsable_nombre', 'responsable_email', 'responsable_departamento', 'observacion'];
 
     private const AUDIT_HEADERS = ['Activofijo', 'Numerodeserie', 'ubicacion', 'Denominaciondelactivofijo', 'Ce.coste', 'Cantidad', 'Fe.capit.', 'ValorNeto', 'VidaRestante', 'Encargado'];
@@ -50,7 +56,7 @@ class AssetImportController extends Controller
 
     public function export()
     {
-        Gate::authorize('consultar-inventario');
+        Gate::authorize('gestionar-inventario');
         abort_unless(class_exists(ZipArchive::class), 422, 'El servidor no tiene habilitada la generación de archivos Excel.');
         $path = tempnam(sys_get_temp_dir(), 'activos-');
         $zip = new ZipArchive;
@@ -88,7 +94,7 @@ class AssetImportController extends Controller
     public function preview(Request $request): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $request->validate(['archivo' => ['required', 'file', 'max:5120', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']]);
+        $request->validate(['archivo' => ['required', 'file', 'max:20480', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']]);
         $file = $request->file('archivo');
         $extension = strtolower($file->getClientOriginalExtension());
         abort_unless(in_array($extension, ['csv', 'xlsx'], true), 422, 'Solo se admiten archivos CSV o Excel (.xlsx).');
@@ -216,8 +222,7 @@ class AssetImportController extends Controller
     private function readAuditWorkbook(string $path): array
     {
         abort_unless(class_exists(ZipArchive::class), 422, 'El servidor no tiene habilitada la lectura de archivos Excel.');
-        $zip = new ZipArchive;
-        abort_unless($zip->open($path) === true, 422, 'No se pudo leer el archivo Excel.');
+        $zip = $this->openSafeWorkbook($path);
         $sharedStrings = $this->sharedStrings($zip);
         $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
         abort_unless($sheet !== false, 422, 'El archivo Excel no contiene una hoja de datos válida.');
@@ -240,8 +245,7 @@ class AssetImportController extends Controller
         if ($xml === false) {
             return [];
         }
-        $document = new DOMDocument;
-        $document->loadXML($xml);
+        $document = $this->xmlDocument($xml);
         $xpath = new DOMXPath($document);
         $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
 
@@ -250,8 +254,7 @@ class AssetImportController extends Controller
 
     private function worksheetRows(string $xml, array $sharedStrings): array
     {
-        $document = new DOMDocument;
-        $document->loadXML($xml);
+        $document = $this->xmlDocument($xml);
         $xpath = new DOMXPath($document);
         $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
         $rows = [];
@@ -279,6 +282,36 @@ class AssetImportController extends Controller
         }
 
         return $rows;
+    }
+
+    private function openSafeWorkbook(string $path): ZipArchive
+    {
+        $zip = new ZipArchive;
+        abort_unless($zip->open($path) === true, 422, 'No se pudo leer el archivo Excel.');
+        $size = 0;
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = $zip->statIndex($index);
+            $size += (int) ($entry['size'] ?? 0);
+        }
+        if ($zip->numFiles > self::MAX_XLSX_ENTRIES || $size > self::MAX_XLSX_UNCOMPRESSED_BYTES) {
+            $zip->close();
+            abort(422, 'El archivo Excel supera los límites de seguridad permitidos.');
+        }
+
+        return $zip;
+    }
+
+    private function xmlDocument(string $xml): DOMDocument
+    {
+        abort_unless(strlen($xml) <= self::MAX_XLSX_XML_BYTES, 422, 'El archivo Excel contiene una hoja demasiado grande.');
+        $previous = libxml_use_internal_errors(true);
+        $document = new DOMDocument;
+        $loaded = $document->loadXML($xml, LIBXML_NONET | LIBXML_COMPACT);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        abort_unless($loaded, 422, 'El archivo Excel contiene datos XML no válidos.');
+
+        return $document;
     }
 
     private function auditRow(array $source, int $line): array

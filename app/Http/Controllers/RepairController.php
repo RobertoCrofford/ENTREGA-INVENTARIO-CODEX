@@ -140,7 +140,7 @@ class RepairController extends Controller
 
     public function evidence(Repair $repair, RepairEvidence $evidence)
     {
-        Gate::authorize('consultar-inventario');
+        Gate::authorize('gestionar-inventario');
         abort_unless($evidence->reparacion_id === $repair->id && Storage::disk('local')->exists($evidence->ruta), 404);
 
         return Storage::disk('local')->response($evidence->ruta, $evidence->nombre_original, ['Content-Type' => $evidence->mime]);

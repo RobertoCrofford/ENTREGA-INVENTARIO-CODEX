@@ -18,12 +18,14 @@ class AssetDisposalController extends Controller
 {
     public function index(): View
     {
-        Gate::authorize('consultar-inventario');
+        Gate::authorize('solicitar-baja-activo');
+        $user = auth()->user();
 
         $requests = DB::table('solicitudes_baja_activo as solicitud')
             ->join('activos as activo', 'activo.id', '=', 'solicitud.activo_id')
             ->join('users as solicitante', 'solicitante.id', '=', 'solicitud.solicitado_por')
             ->leftJoin('users as resolutor', 'resolutor.id', '=', 'solicitud.resuelto_por')
+            ->when($user->tieneRol(Role::INVITADO), fn ($query) => $query->where('solicitud.solicitado_por', $user->id))
             ->select('solicitud.*', 'activo.activo_fijo', 'activo.marca', 'activo.modelo', 'solicitante.name as solicitante_nombre', 'resolutor.name as resolutor_nombre')
             ->orderByDesc('solicitud.id')->paginate(20);
 
@@ -96,9 +98,10 @@ class AssetDisposalController extends Controller
 
     public function download(int $disposal)
     {
-        Gate::authorize('consultar-inventario');
+        Gate::authorize('solicitar-baja-activo');
         $record = DB::table('solicitudes_baja_activo')->find($disposal);
         abort_unless($record && $record->estado_pdf === 'generado' && $record->pdf_path && Storage::disk('local')->exists($record->pdf_path), 404);
+        abort_if(auth()->user()->tieneRol(Role::INVITADO) && $record->solicitado_por !== auth()->id(), 403);
 
         return Storage::disk('local')->download($record->pdf_path, 'acta-baja-activo-'.$disposal.'.pdf');
     }

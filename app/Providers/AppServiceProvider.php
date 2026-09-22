@@ -33,7 +33,8 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::before(fn (User $user, string $ability) => $ability !== 'solicitar-baja-activo' && $user->tieneRol(Role::SUPERADMIN) ? true : null);
 
-        Gate::define('consultar-inventario', fn (User $user) => $user->activo);
+        Gate::define('consultar-inventario', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
+        Gate::define('escanear-inventario', fn (User $user) => $user->activo);
         Gate::define('ver-eventos', fn (User $user) => $user->activo);
         Gate::define('gestionar-eventos', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
         Gate::define('clasificar-activos', fn (User $user) => $user->activo && ! $user->tieneRol(Role::INVITADO));

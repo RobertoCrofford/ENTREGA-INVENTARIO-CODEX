@@ -16,6 +16,12 @@ use ZipArchive;
 
 class CalendarEventController extends Controller
 {
+    private const MAX_XLSX_ENTRIES = 100;
+
+    private const MAX_XLSX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024;
+
+    private const MAX_XLSX_XML_BYTES = 50 * 1024 * 1024;
+
     public function index(Request $request): View
     {
         Gate::authorize('ver-eventos');
@@ -82,7 +88,7 @@ class CalendarEventController extends Controller
     {
         Gate::authorize('gestionar-eventos');
         $request->validate([
-            'archivo' => ['required', 'file', 'max:5120', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            'archivo' => ['required', 'file', 'max:20480', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
             'anio' => ['required', 'integer', 'between:2020,2100'],
         ]);
         $file = $request->file('archivo');
@@ -230,10 +236,7 @@ class CalendarEventController extends Controller
         if (! class_exists(ZipArchive::class)) {
             throw new \RuntimeException('El servidor no tiene habilitada la lectura de archivos Excel.');
         }
-        $zip = new ZipArchive;
-        if ($zip->open($path) !== true) {
-            throw new \RuntimeException('No se pudo leer el archivo Excel.');
-        }
+        $zip = $this->openSafeWorkbook($path);
         $strings = $this->sharedStrings($zip);
         $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
         $zip->close();
@@ -318,8 +321,7 @@ class CalendarEventController extends Controller
 
     private function worksheetRows(string $xml, array $sharedStrings): array
     {
-        $document = new DOMDocument;
-        $document->loadXML($xml);
+        $document = $this->xmlDocument($xml);
         $xpath = new DOMXPath($document);
         $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
 
@@ -344,12 +346,47 @@ class CalendarEventController extends Controller
         if ($xml === false) {
             return [];
         }
-        $document = new DOMDocument;
-        $document->loadXML($xml);
+        $document = $this->xmlDocument($xml);
         $xpath = new DOMXPath($document);
         $xpath->registerNamespace('s', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
 
         return collect($xpath->query('//s:si'))->map(fn ($item) => trim($xpath->evaluate('string(.)', $item)))->all();
+    }
+
+    private function openSafeWorkbook(string $path): ZipArchive
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('No se pudo leer el archivo Excel.');
+        }
+        $size = 0;
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = $zip->statIndex($index);
+            $size += (int) ($entry['size'] ?? 0);
+        }
+        if ($zip->numFiles > self::MAX_XLSX_ENTRIES || $size > self::MAX_XLSX_UNCOMPRESSED_BYTES) {
+            $zip->close();
+            throw new \RuntimeException('El archivo Excel supera los límites de seguridad permitidos.');
+        }
+
+        return $zip;
+    }
+
+    private function xmlDocument(string $xml): DOMDocument
+    {
+        if (strlen($xml) > self::MAX_XLSX_XML_BYTES) {
+            throw new \RuntimeException('El archivo Excel contiene una hoja demasiado grande.');
+        }
+        $previous = libxml_use_internal_errors(true);
+        $document = new DOMDocument;
+        $loaded = $document->loadXML($xml, LIBXML_NONET | LIBXML_COMPACT);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        if (! $loaded) {
+            throw new \RuntimeException('El archivo Excel contiene datos XML no válidos.');
+        }
+
+        return $document;
     }
 
     private function date(string $value, int $year): Carbon
