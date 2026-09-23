@@ -34,7 +34,8 @@ COPY --from=frontend_assets /app/public/build ./public/build
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/inventory.ini
 COPY docker/php/entrypoint.sh /usr/local/bin/inventory-entrypoint
 
-RUN php artisan package:discover --ansi \
+RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
+    && php artisan package:discover --ansi \
     && chmod +x /usr/local/bin/inventory-entrypoint \
     && chown -R www-data:www-data storage bootstrap/cache
 
