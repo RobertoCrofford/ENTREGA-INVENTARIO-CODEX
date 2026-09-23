@@ -92,6 +92,8 @@ El archivo `docker-compose.yml` está preparado para recibir secretos desde **En
 
 Usa valores nuevos y privados para los secretos. Para `APP_KEY`, genera una clave de Laravel en un entorno seguro con `php artisan key:generate --show` y copia solo su resultado a Portainer. No subas `.env` ni contraseñas a GitHub.
 
+Los errores del servidor se envían a los registros del contenedor `app` (`LOG_CHANNEL=stderr`), por lo que se pueden revisar desde **Containers → app → Logs** en Portainer sin abrir una consola.
+
 ## Restauración verificada (entorno vacío)
 
 La restauración se realiza únicamente con servicios detenidos y sobre una base de datos de destino creada para ese fin. No ejecute este procedimiento sobre la base productiva sin una ventana de mantenimiento y una copia adicional verificada.
