@@ -288,6 +288,30 @@ class SecurityRegressionTest extends TestCase
             ->assertSee('value="'.$code.'"', false);
     }
 
+    public function test_an_unregistered_scan_does_not_create_notifications(): void
+    {
+        $guest = $this->user(Role::INVITADO);
+
+        $this->actingAs($guest)->post(route('scan.search'), ['codigo' => 'CODIGO-SIN-REGISTRO'])
+            ->assertOk()
+            ->assertSee('Código no registrado');
+
+        $this->assertDatabaseMissing('notificaciones', ['titulo' => 'Código sin registrar']);
+    }
+
+    public function test_scanning_an_asset_shows_its_operational_details(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+
+        $this->actingAs($technician)->get(route('scan.index', ['codigo' => $asset->activo_fijo]))
+            ->assertOk()
+            ->assertSee('Activo encontrado')
+            ->assertSee($asset->activo_fijo)
+            ->assertSee('Número de serie')
+            ->assertSee('Ubicación actual');
+    }
+
     public function test_technician_cannot_mark_an_asset_as_disposed_directly(): void
     {
         $technician = $this->user(Role::TECNICO);

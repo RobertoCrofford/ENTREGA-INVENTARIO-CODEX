@@ -1,3 +1,42 @@
+x-laravel-environment: &laravel-environment
+  APP_NAME: "${APP_NAME:-Inventario Institucional}"
+  APP_ENV: "${APP_ENV:-production}"
+  APP_KEY: "${APP_KEY:?Configura APP_KEY en las variables de Portainer}"
+  ADMIN_RECOVERY_CODE: "${ADMIN_RECOVERY_CODE:-}"
+  APP_DEBUG: "${APP_DEBUG:-false}"
+  APP_URL: "${APP_URL:?Configura APP_URL en las variables de Portainer}"
+  APP_LOCALE: "${APP_LOCALE:-es}"
+  APP_FALLBACK_LOCALE: "${APP_FALLBACK_LOCALE:-es}"
+  APP_FAKER_LOCALE: "${APP_FAKER_LOCALE:-es_CL}"
+  LOG_CHANNEL: "${LOG_CHANNEL:-stack}"
+  LOG_STACK: "${LOG_STACK:-single}"
+  LOG_LEVEL: "${LOG_LEVEL:-warning}"
+  DB_CONNECTION: "${DB_CONNECTION:-mysql}"
+  DB_HOST: "${DB_HOST:-database}"
+  DB_PORT: "${DB_PORT:-3306}"
+  DB_DATABASE: "${DB_DATABASE:?Configura DB_DATABASE en las variables de Portainer}"
+  DB_USERNAME: "${DB_USERNAME:?Configura DB_USERNAME en las variables de Portainer}"
+  DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en las variables de Portainer}"
+  SESSION_DRIVER: "${SESSION_DRIVER:-database}"
+  SESSION_LIFETIME: "${SESSION_LIFETIME:-30}"
+  SESSION_ENCRYPT: "${SESSION_ENCRYPT:-true}"
+  SESSION_SECURE_COOKIE: "${SESSION_SECURE_COOKIE:-true}"
+  SESSION_SAME_SITE: "${SESSION_SAME_SITE:-lax}"
+  SESSION_PATH: "${SESSION_PATH:-/}"
+  SESSION_DOMAIN: "${SESSION_DOMAIN:-}"
+  BROADCAST_CONNECTION: "${BROADCAST_CONNECTION:-log}"
+  FILESYSTEM_DISK: "${FILESYSTEM_DISK:-local}"
+  QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
+  CACHE_STORE: "${CACHE_STORE:-database}"
+  MAIL_MAILER: "${MAIL_MAILER:-smtp}"
+  MAIL_SCHEME: "${MAIL_SCHEME:-tls}"
+  MAIL_HOST: "${MAIL_HOST:?Configura MAIL_HOST en las variables de Portainer}"
+  MAIL_PORT: "${MAIL_PORT:-587}"
+  MAIL_USERNAME: "${MAIL_USERNAME:?Configura MAIL_USERNAME en las variables de Portainer}"
+  MAIL_PASSWORD: "${MAIL_PASSWORD:?Configura MAIL_PASSWORD en las variables de Portainer}"
+  MAIL_FROM_ADDRESS: "${MAIL_FROM_ADDRESS:?Configura MAIL_FROM_ADDRESS en las variables de Portainer}"
+  MAIL_FROM_NAME: "${MAIL_FROM_NAME:-Inventario Institucional}"
+
 services:
   proxy:
     image: nginx:1.27-alpine
@@ -24,7 +63,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    env_file: .env
+    environment: *laravel-environment
     depends_on:
       database:
         condition: service_healthy
@@ -51,7 +90,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    env_file: .env
+    environment: *laravel-environment
     command: ["sh", "-c", "php artisan migrate --force --no-interaction && php artisan db:seed --force --no-interaction"]
     depends_on:
       database:
@@ -67,7 +106,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    env_file: .env
+    environment: *laravel-environment
     command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
     depends_on:
       migrate:
@@ -83,7 +122,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    env_file: .env
+    environment: *laravel-environment
     command: ["php", "artisan", "schedule:work"]
     depends_on:
       migrate:
@@ -98,10 +137,10 @@ services:
   database:
     image: mysql:8.4
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: "${DB_DATABASE:?Configura DB_DATABASE en las variables de Portainer}"
+      MYSQL_USER: "${DB_USERNAME:?Configura DB_USERNAME en las variables de Portainer}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en las variables de Portainer}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Configura MYSQL_ROOT_PASSWORD en las variables de Portainer}"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -117,9 +156,9 @@ services:
     image: mysql:8.4
     environment:
       DB_HOST: database
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: "${DB_DATABASE:?Configura DB_DATABASE en las variables de Portainer}"
+      DB_USERNAME: "${DB_USERNAME:?Configura DB_USERNAME en las variables de Portainer}"
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en las variables de Portainer}"
     command: ["sh", "/usr/local/bin/backup.sh"]
     depends_on:
       database:
