@@ -72,7 +72,7 @@ Para reiniciar desde cero en desarrollo se deben detener los servicios y elimina
 | `migrate` | Ejecuta las migraciones técnicas una vez por inicio. |
 | `queue` | Procesa colas con driver de base de datos. |
 | `scheduler` | Ejecuta el planificador Laravel. |
-| `backup` | Genera un dump local verificado diario en `storage/backups`. |
+| `backup` | Genera un dump verificado diario en un volumen persistente de Docker. |
 
 Los valores de `.env.example` son exclusivos para desarrollo. Producción requiere secretos propios, HTTPS configurado en el proxy, correo institucional y un destino externo cifrado y verificado para respaldos.
 
@@ -84,11 +84,11 @@ Los valores de `.env.example` son exclusivos para desarrollo. Producción requie
 4. Configura el SMTP institucional y realiza una prueba de recuperación de contraseña antes de abrir el sistema a usuarios.
 5. En cada actualización, ejecuta `docker compose up --build -d`, luego `docker compose exec app php artisan optimize:clear` y revisa `https://tu-dominio/up`. El contenedor reconoce los cambios de código sin conservar rutas o vistas antiguas.
 
-Los respaldos diarios se crean de forma temporal y se publican solo después de verificarse. La carpeta `storage/backups` está excluida del repositorio. Para producción, cifra la copia y envíala a un segundo destino con acceso restringido; conserva y prueba periódicamente una restauración.
+Los respaldos diarios se crean de forma temporal y se publican solo después de verificarse. Se conservan en un volumen persistente de Docker, fuera del repositorio. Para producción, cifra la copia y envíala a un segundo destino con acceso restringido; conserva y prueba periódicamente una restauración.
 
 ### Despliegue desde Portainer
 
-El archivo `docker-compose.yml` está preparado para recibir secretos desde **Environment variables** de la Stack en Portainer; no requiere ni busca un archivo `.env` en el servidor. Antes de pulsar **Deploy the stack**, agrega las variables indicadas en `.env.production.example`. Las obligatorias son `APP_KEY`, `ADMIN_RECOVERY_CODE`, `APP_URL`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS`.
+El archivo `docker-compose.yml` está preparado para recibir secretos desde **Environment variables** de la Stack en Portainer; no requiere ni busca un archivo `.env` en el servidor ni monta carpetas del host sobre la aplicación. Antes de pulsar **Deploy the stack**, agrega las variables indicadas en `.env.production.example`. Las obligatorias son `APP_KEY`, `ADMIN_RECOVERY_CODE`, `APP_URL`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS`.
 
 Usa valores nuevos y privados para los secretos. Para `APP_KEY`, genera una clave de Laravel en un entorno seguro con `php artisan key:generate --show` y copia solo su resultado a Portainer. No subas `.env` ni contraseñas a GitHub.
 
@@ -97,12 +97,13 @@ Usa valores nuevos y privados para los secretos. Para `APP_KEY`, genera una clav
 La restauración se realiza únicamente con servicios detenidos y sobre una base de datos de destino creada para ese fin. No ejecute este procedimiento sobre la base productiva sin una ventana de mantenimiento y una copia adicional verificada.
 
 ```powershell
-# Verificar la integridad del archivo antes de restaurar.
+# Listar y verificar el respaldo dentro del volumen Docker.
+docker compose exec backup ls -1 /backups
 docker compose exec backup gzip -t /backups/mysql-AAAAMMDDTHHMMSSZ.sql.gz
 
 # Restaurar hacia la base configurada en .env.
-Get-Content .\storage\backups\mysql-AAAAMMDDTHHMMSSZ.sql.gz -Encoding Byte |
-  docker compose exec -T database sh -lc 'gzip -dc | mysql -u root -p"$MYSQL_ROOT_PASSWORD"'
+docker compose exec -T backup sh -c 'gzip -dc /backups/mysql-AAAAMMDDTHHMMSSZ.sql.gz' |
+  docker compose exec -T database sh -lc 'mysql -u root -p"$MYSQL_ROOT_PASSWORD"'
 ```
 
 Después se debe iniciar la aplicación, ejecutar `php artisan migrate --force`, comprobar `/up` y registrar el resultado de la prueba de restauración. Para producción, configure además un segundo destino externo cifrado; la copia local no es suficiente.
