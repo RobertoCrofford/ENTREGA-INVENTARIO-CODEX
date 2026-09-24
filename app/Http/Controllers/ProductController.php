@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Services\AuditService;
 use App\Services\InventoryMovementService;
+use App\Support\AssetCodeMatch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,10 +31,12 @@ class ProductController extends Controller
             ->when($term === '' && ! $onlyOutOfStock, fn ($query) => $query->whereRaw('1 = 0'))
             ->orderBy('nombre')->paginate(20)->withQueryString();
 
+        $matchingCodeIds = $term === '' ? [] : AssetCodeMatch::assetIds($term);
         $assetMatch = $term === '' ? null : Asset::query()
             ->with(['type', 'status'])
             ->where(fn ($query) => $query->where('activo_fijo', $term)
                 ->orWhere('numero_serie', $term)
+                ->orWhereIn('id', $matchingCodeIds)
                 ->orWhereIn('codigo_escaneo_id', DB::table('codigos_escaneo')->where('codigo', $term)->select('id')))
             ->first();
 

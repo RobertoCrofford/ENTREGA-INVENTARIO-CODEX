@@ -10,7 +10,7 @@
     @csrf
     <div class="card-header">Nueva solicitud</div>
     <div class="card-body"><div class="row g-3">
-        <div class="col-md-4"><label class="form-label" for="buscar_activo_baja">Buscar activo</label><input class="form-control mb-2" id="buscar_activo_baja" type="search" placeholder="Código, serie, marca o modelo" autocomplete="off"><input id="activo_id" name="activo_id" type="hidden" value="{{ old('activo_id') }}" required><div id="activo_seleccionado_baja" class="asset-picker-selected d-none" aria-live="polite"><div><span class="eyebrow">Activo seleccionado</span><strong></strong></div><button class="btn btn-sm btn-outline-light" id="cambiar_activo_baja" type="button">Cambiar</button></div><div id="resultados_activos_baja" class="asset-picker-results" role="listbox" aria-label="Resultados de activos">@foreach($assets as $asset)<button class="asset-picker-option" type="button" role="option" data-id="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" data-label="{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}"><strong>{{ $asset->activo_fijo }}</strong><span>{{ $asset->marca }} {{ $asset->modelo }}@if($asset->numero_serie) · Serie {{ $asset->numero_serie }}@endif</span></button>@endforeach</div><div id="resultado_busqueda_baja" class="form-text" aria-live="polite">{{ $assets->count() }} activo(s) disponible(s). Escribe para filtrar.</div>@error('activo_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
+        <div class="col-md-4"><label class="form-label" for="buscar_activo_baja">Buscar activo</label><input class="form-control mb-2" id="buscar_activo_baja" type="search" placeholder="Código, serie, marca o modelo" autocomplete="off"><input id="activo_id" name="activo_id" type="hidden" value="{{ old('activo_id') }}" required><div id="activo_seleccionado_baja" class="asset-picker-selected d-none" aria-live="polite"><div><span class="eyebrow">Activo seleccionado</span><strong></strong></div><button class="btn btn-sm btn-outline-light" id="cambiar_activo_baja" type="button">Cambiar</button></div><div id="resultados_activos_baja" class="asset-picker-results" role="listbox" aria-label="Resultados de activos">@foreach($assets as $asset)<button class="asset-picker-option" type="button" role="option" data-id="{{ $asset->id }}" data-fixed-code="{{ $asset->activo_fijo }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" data-label="{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}"><strong>{{ $asset->activo_fijo }}</strong><span>{{ $asset->marca }} {{ $asset->modelo }}@if($asset->numero_serie) · Serie {{ $asset->numero_serie }}@endif</span></button>@endforeach</div><div id="resultado_busqueda_baja" class="form-text" aria-live="polite">{{ $assets->count() }} activo(s) disponible(s). Escribe para filtrar.</div>@error('activo_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror</div>
         <div class="col-md-4"><label class="form-label" for="motivo">Motivo</label><textarea class="form-control" id="motivo" name="motivo" minlength="10" maxlength="2000" required>{{ old('motivo') }}</textarea></div>
         <div class="col-md-4"><label class="form-label" for="diagnostico">Diagnóstico</label><textarea class="form-control" id="diagnostico" name="diagnostico" minlength="10" maxlength="2000" required>{{ old('diagnostico') }}</textarea></div>
     </div>@if($errors->any())<div class="alert alert-danger mt-3 mb-0">{{ $errors->first() }}</div>@endif</div>
@@ -32,9 +32,14 @@
         if (!form || !search || !assets || !feedback || !results || !selected || !selectedLabel || !change) return;
         const options = Array.from(results.querySelectorAll('.asset-picker-option'));
         const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const sameFixedCode = (option, value) => {
+            const fixedCode = option.dataset.fixedCode ?? '';
+            if (!/^\d{6,}$/.test(value) || !/^\d{6,}$/.test(fixedCode)) return false;
+            return (value.replace(/0+$/, '') || '0') === (fixedCode.replace(/0+$/, '') || '0');
+        };
         const filter = () => {
             const term = normalize(search.value.trim());
-            const matches = options.filter((option) => term === '' || normalize(option.dataset.search).includes(term));
+            const matches = options.filter((option) => term === '' || normalize(option.dataset.search).includes(term) || sameFixedCode(option, term));
             options.forEach((option) => option.hidden = !matches.includes(option));
             feedback.textContent = term === '' ? `${options.length} activo(s) disponible(s).` : `${matches.length} resultado(s) encontrado(s). Selecciona uno.`;
         };

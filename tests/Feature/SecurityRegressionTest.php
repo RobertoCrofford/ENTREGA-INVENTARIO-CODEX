@@ -461,6 +461,22 @@ class SecurityRegressionTest extends TestCase
         ]);
     }
 
+    public function test_zero_padded_fixed_code_finds_the_same_asset_in_scan_and_search(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+        $asset->update(['activo_fijo' => '500081145']);
+
+        $this->actingAs($technician)->post(route('scan.search'), ['codigo' => '500081145000'])
+            ->assertOk()
+            ->assertSee('Activo encontrado')
+            ->assertSee('500081145');
+
+        $this->actingAs($technician)->get(route('assets.index', ['buscar' => 1, 'q' => '500081145000']))
+            ->assertOk()
+            ->assertSee('500081145');
+    }
+
     public function test_assigned_technician_can_cancel_a_repair_and_restore_the_asset(): void
     {
         Storage::fake('local');

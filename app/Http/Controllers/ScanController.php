@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Models\Product;
+use App\Support\AssetCodeMatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -36,20 +37,23 @@ class ScanController extends Controller
     private function result(string $code): View
     {
         $codeId = DB::table('codigos_escaneo')->where('codigo', $code)->value('id');
+        $matchingCodeIds = AssetCodeMatch::assetIds($code);
         $product = Product::query()->with('categoria')->where(function ($query) use ($codeId, $code) {
             if ($codeId) {
                 $query->where('codigo_escaneo_id', $codeId);
             }
             $query->orWhere('codigo_interno', $code);
         })->first();
-        $asset = Asset::query()->with(['type', 'status', 'location'])->where(function ($query) use ($codeId, $code) {
+        $assets = Asset::query()->with(['type', 'status', 'location'])->where(function ($query) use ($codeId, $code, $matchingCodeIds) {
             if ($codeId) {
                 $query->where('codigo_escaneo_id', $codeId);
             }
             $query->orWhere('activo_fijo', $code)
-                ->orWhere('numero_serie', $code);
-        })->first();
-        $ambiguous = $product && $asset;
+                ->orWhere('numero_serie', $code)
+                ->orWhereIn('id', $matchingCodeIds);
+        })->get();
+        $asset = $assets->count() === 1 ? $assets->first() : null;
+        $ambiguous = ($product && $asset) || $assets->count() > 1;
         return view('scan.index', [
             'codigo' => $code,
             'product' => $product,

@@ -29,7 +29,7 @@
                     </div>
                     <div id="resultados_activos" class="asset-picker-results" role="listbox" aria-label="Resultados de activos">
                         @foreach($assets as $asset)
-                            <button class="asset-picker-option" type="button" role="option" data-id="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" data-label="{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}{{ $asset->numero_serie ? ' · Serie: '.$asset->numero_serie : '' }}">
+                            <button class="asset-picker-option" type="button" role="option" data-id="{{ $asset->id }}" data-fixed-code="{{ $asset->activo_fijo }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" data-label="{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}{{ $asset->numero_serie ? ' · Serie: '.$asset->numero_serie : '' }}">
                                 <strong>{{ $asset->activo_fijo }}</strong>
                                 <span>{{ $asset->marca }} {{ $asset->modelo }}@if($asset->numero_serie) · Serie {{ $asset->numero_serie }}@endif</span>
                             </button>
@@ -93,10 +93,15 @@
         const options = Array.from(results?.querySelectorAll('.asset-picker-option') ?? []);
         if (!form || !search || !assetId || !results || !selected || !selectedLabel || !change || !feedback) return;
         const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const sameFixedCode = (option, value) => {
+            const fixedCode = option.dataset.fixedCode ?? '';
+            if (!/^\d{6,}$/.test(value) || !/^\d{6,}$/.test(fixedCode)) return false;
+            return (value.replace(/0+$/, '') || '0') === (fixedCode.replace(/0+$/, '') || '0');
+        };
 
         const filter = () => {
             const term = normalize(search.value.trim());
-            const matches = options.filter((option) => term === '' || normalize(option.dataset.search).includes(term));
+            const matches = options.filter((option) => term === '' || normalize(option.dataset.search).includes(term) || sameFixedCode(option, term));
             options.forEach((option) => option.hidden = !matches.includes(option));
             feedback.textContent = term === '' ? `${options.length} activo(s) disponible(s).` : `${matches.length} resultado(s) encontrado(s). Selecciona uno.`;
         };

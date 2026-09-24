@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Role;
 use App\Services\AssetLifecycleService;
 use App\Services\AuditService;
+use App\Support\AssetCodeMatch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,8 +28,10 @@ class AssetController extends Controller
         $usage = trim((string) $request->query('uso', ''));
         $status = trim((string) $request->query('estado', ''));
         $searched = $request->boolean('buscar') || $term !== '' || $usage !== '' || $status !== '';
+        $matchingCodeIds = $term === '' ? [] : AssetCodeMatch::assetIds($term);
         $assets = Asset::query()->with(['type', 'status', 'location'])
-            ->when($term !== '', fn ($query) => $query->whereAny(['activo_fijo', 'numero_serie', 'marca', 'modelo'], 'like', "%{$term}%"))
+            ->when($term !== '', fn ($query) => $query->where(fn ($matches) => $matches->whereAny(['activo_fijo', 'numero_serie', 'marca', 'modelo'], 'like', "%{$term}%")
+                ->orWhereIn('id', $matchingCodeIds)))
             ->when($usage !== '', fn ($query) => $query->where('uso', $usage))
             ->when($status !== '', fn ($query) => $query->whereHas('status', fn ($statuses) => $statuses->where('codigo', $status)))
             ->when(! $searched, fn ($query) => $query->whereRaw('1 = 0'))

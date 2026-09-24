@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\AssetLifecycleService;
 use App\Services\AuditService;
+use App\Support\AssetCodeMatch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,10 +24,12 @@ class RepairController extends Controller
     {
         Gate::authorize('consultar-inventario');
 
+        $matchingCodeIds = $request->filled('q') ? AssetCodeMatch::assetIds((string) $request->q) : [];
         $repairs = Repair::query()->with(['asset', 'technician', 'evidences'])
             ->when($request->q, fn ($query, $term) => $query->where('falla_reportada', 'like', "%{$term}%")
                 ->orWhereHas('asset', fn ($assets) => $assets->where('activo_fijo', 'like', "%{$term}%")
-                    ->orWhere('numero_serie', 'like', "%{$term}%"))
+                    ->orWhere('numero_serie', 'like', "%{$term}%")
+                    ->orWhereIn('id', $matchingCodeIds))
                 ->orWhereHas('technician', fn ($users) => $users->where('name', 'like', "%{$term}%")))
             ->orderByRaw("FIELD(prioridad, 'critica', 'alta', 'media', 'baja')")
             ->latest()->paginate(20)->withQueryString();

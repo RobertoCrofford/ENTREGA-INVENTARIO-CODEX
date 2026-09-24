@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Asset;
 use App\Models\Product;
 use App\Services\InventoryMovementService;
+use App\Support\AssetCodeMatch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,13 +19,15 @@ class InventoryMovementController extends Controller
     {
         Gate::authorize('consultar-inventario');
 
+        $matchingCodeIds = $request->filled('q') ? AssetCodeMatch::assetIds((string) $request->q) : [];
         $movements = DB::table('movimientos_inventario as movimiento')
             ->join('movimientos_detalle as detalle', 'detalle.movimiento_id', '=', 'movimiento.id')
             ->leftJoin('productos as producto', 'producto.id', '=', 'detalle.producto_id')
             ->leftJoin('activos as activo', 'activo.id', '=', 'detalle.activo_id')
             ->join('users as creador', 'creador.id', '=', 'movimiento.creado_por')
             ->leftJoin('users as publicador', 'publicador.id', '=', 'movimiento.publicado_por')
-            ->when($request->q, fn ($query, $term) => $query->whereAny(['movimiento.folio', 'producto.codigo_interno', 'producto.nombre', 'activo.activo_fijo', 'activo.numero_serie', 'activo.marca', 'activo.modelo', 'movimiento.motivo', 'creador.name'], 'like', "%{$term}%"))
+            ->when($request->q, fn ($query, $term) => $query->where(fn ($matches) => $matches->whereAny(['movimiento.folio', 'producto.codigo_interno', 'producto.nombre', 'activo.activo_fijo', 'activo.numero_serie', 'activo.marca', 'activo.modelo', 'movimiento.motivo', 'creador.name'], 'like', "%{$term}%")
+                ->orWhereIn('activo.id', $matchingCodeIds)))
             ->selectRaw("movimiento.folio, movimiento.tipo, movimiento.estado, movimiento.motivo, movimiento.publicado_at, movimiento.created_at, COALESCE(producto.codigo_interno, activo.activo_fijo) as item_codigo, COALESCE(producto.nombre, CONCAT_WS(' ', activo.marca, activo.modelo)) as item_nombre, detalle.cantidad, creador.name as creado_por_nombre, publicador.name as publicado_por_nombre")
             ->orderByDesc('movimiento.id')->paginate(20)->withQueryString();
 
