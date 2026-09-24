@@ -99,5 +99,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('repairs', RepairController::class)->only('index', 'create', 'store');
         Route::get('repairs/{repair}/evidences/{evidence}', [RepairController::class, 'evidence'])->name('repairs.evidence');
         Route::post('repairs/{repair}/complete', [RepairController::class, 'complete'])->name('repairs.complete');
+        Route::post('repairs/{repair}/cancel', [RepairController::class, 'cancel'])->name('repairs.cancel');
     });
 });

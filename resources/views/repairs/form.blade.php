@@ -19,22 +19,23 @@
             @csrf
 
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-8">
                     <label class="form-label" for="buscar_activo">Buscar activo</label>
-                    <input class="form-control" id="buscar_activo" type="search" placeholder="Activo fijo, serie, marca o modelo" autocomplete="off">
-                    <div class="form-text">Escribe para reducir el listado y luego selecciona el activo.</div>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label" for="activo_id">Activo seleccionado</label>
-                    <select class="form-select" id="activo_id" name="activo_id" size="5" required>
-                        <option value="">Selecciona un activo</option>
+                    <input class="form-control mb-2" id="buscar_activo" type="search" placeholder="Código, serie, marca o modelo" autocomplete="off" @disabled($assets->isEmpty())>
+                    <input id="activo_id" name="activo_id" type="hidden" value="{{ old('activo_id') }}" required>
+                    <div id="activo_seleccionado" class="asset-picker-selected d-none" aria-live="polite">
+                        <div><span class="eyebrow">Activo seleccionado</span><strong></strong></div>
+                        <button class="btn btn-sm btn-outline-light" id="cambiar_activo" type="button">Cambiar</button>
+                    </div>
+                    <div id="resultados_activos" class="asset-picker-results" role="listbox" aria-label="Resultados de activos">
                         @foreach($assets as $asset)
-                            <option value="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" @selected(old('activo_id') == $asset->id)>
-                                {{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}{{ $asset->numero_serie ? ' · Serie: '.$asset->numero_serie : '' }}
-                            </option>
+                            <button class="asset-picker-option" type="button" role="option" data-id="{{ $asset->id }}" data-search="{{ $asset->activo_fijo }} {{ $asset->numero_serie }} {{ $asset->marca }} {{ $asset->modelo }}" data-label="{{ $asset->activo_fijo }} · {{ $asset->marca }} {{ $asset->modelo }}{{ $asset->numero_serie ? ' · Serie: '.$asset->numero_serie : '' }}">
+                                <strong>{{ $asset->activo_fijo }}</strong>
+                                <span>{{ $asset->marca }} {{ $asset->modelo }}@if($asset->numero_serie) · Serie {{ $asset->numero_serie }}@endif</span>
+                            </button>
                         @endforeach
-                    </select>
+                    </div>
+                    <div id="resultado_busqueda_activo" class="form-text" aria-live="polite">{{ $assets->count() }} activo(s) disponible(s). Escribe para filtrar.</div>
                     @error('activo_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
 
@@ -63,9 +64,9 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label" for="evidencias">Evidencia fotográfica <span class="text-body-secondary fw-normal">(opcional)</span></label>
-                    <input class="form-control" id="evidencias" name="evidencias[]" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-                    <div class="form-text">Puedes adjuntar hasta 5 fotos JPG, PNG o WEBP, de máximo 5 MB cada una.</div>
+                    <label class="form-label" for="evidencias">Ficha técnica Word</label>
+                    <input class="form-control" id="evidencias" name="evidencias[]" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                    <div class="form-text">Obligatoria. Adjunta una ficha técnica en formato Word (.docx), de máximo 10 MB.</div>
                     @error('evidencias')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                     @error('evidencias.*')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
@@ -82,17 +83,47 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const search = document.getElementById('buscar_activo');
-        const assets = document.getElementById('activo_id');
-        const options = Array.from(assets.options).filter((option) => option.value);
+        const assetId = document.getElementById('activo_id');
+        const results = document.getElementById('resultados_activos');
+        const selected = document.getElementById('activo_seleccionado');
+        const selectedLabel = selected?.querySelector('strong');
+        const change = document.getElementById('cambiar_activo');
+        const feedback = document.getElementById('resultado_busqueda_activo');
+        const options = Array.from(results?.querySelectorAll('.asset-picker-option') ?? []);
+        if (!search || !assetId || !results || !selected || !selectedLabel || !change || !feedback) return;
         const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-        search.addEventListener('input', () => {
+        const filter = () => {
             const term = normalize(search.value.trim());
-
-            options.forEach((option) => {
-                option.hidden = term !== '' && !normalize(option.dataset.search).includes(term);
-            });
+            const matches = options.filter((option) => term === '' || normalize(option.dataset.search).includes(term));
+            options.forEach((option) => option.hidden = !matches.includes(option));
+            feedback.textContent = term === '' ? `${options.length} activo(s) disponible(s).` : `${matches.length} resultado(s) encontrado(s). Selecciona uno.`;
+        };
+        const select = (option) => {
+            assetId.value = option.dataset.id;
+            selectedLabel.textContent = option.dataset.label;
+            selected.classList.remove('d-none');
+            results.classList.add('d-none');
+            search.classList.add('d-none');
+            feedback.textContent = 'Activo listo para registrar la reparación.';
+        };
+        results.addEventListener('click', (event) => {
+            const option = event.target.closest('.asset-picker-option');
+            if (option) select(option);
         });
+        change.addEventListener('click', () => {
+            assetId.value = '';
+            search.value = '';
+            selected.classList.add('d-none');
+            results.classList.remove('d-none');
+            search.classList.remove('d-none');
+            filter();
+            search.focus();
+        });
+        search.addEventListener('input', filter);
+        const previous = options.find((option) => option.dataset.id === assetId.value);
+        if (previous) select(previous);
+        else filter();
     });
 </script>
 @endsection

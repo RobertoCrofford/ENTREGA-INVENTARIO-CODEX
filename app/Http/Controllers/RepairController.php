@@ -25,7 +25,8 @@ class RepairController extends Controller
 
         $repairs = Repair::query()->with(['asset', 'technician', 'evidences'])
             ->when($request->q, fn ($query, $term) => $query->where('falla_reportada', 'like', "%{$term}%")
-                ->orWhereHas('asset', fn ($assets) => $assets->where('activo_fijo', 'like', "%{$term}%"))
+                ->orWhereHas('asset', fn ($assets) => $assets->where('activo_fijo', 'like', "%{$term}%")
+                    ->orWhere('numero_serie', 'like', "%{$term}%"))
                 ->orWhereHas('technician', fn ($users) => $users->where('name', 'like', "%{$term}%")))
             ->orderByRaw("FIELD(prioridad, 'critica', 'alta', 'media', 'baja')")
             ->latest()->paginate(20)->withQueryString();
@@ -49,8 +50,8 @@ class RepairController extends Controller
             'tecnico_id' => ['required', Rule::in($technicianIds)],
             'prioridad' => ['required', Rule::in(['baja', 'media', 'alta', 'critica'])],
             'falla_reportada' => ['required', 'string', 'max:2000'],
-            'evidencias' => ['nullable', 'array', 'max:5'],
-            'evidencias.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'evidencias' => ['required', 'array', 'size:1'],
+            'evidencias.*' => ['file', 'mimes:docx', 'max:10240'],
         ]);
         $repair = DB::transaction(function () use ($data, $request, $audit, $lifecycle) {
             $asset = Asset::query()->with('status')->lockForUpdate()->findOrFail($data['activo_id']);
@@ -69,7 +70,7 @@ class RepairController extends Controller
                 ]);
             }
             $repair->load('asset');
-            $audit->record($request->user(), 'crear', 'reparacion', $repair->id, after: $repair->toArray(), reason: $repair->evidences()->count().' evidencia(s) fotográfica(s) adjunta(s).', notify: false);
+            $audit->record($request->user(), 'crear', 'reparacion', $repair->id, after: $repair->toArray(), reason: 'Ficha técnica Word adjunta.', notify: false);
 
             $recipientIds = User::query()
                 ->where('activo', true)
@@ -136,6 +137,46 @@ class RepairController extends Controller
         }
 
         return redirect()->route('repairs.index')->with('success', 'Reparación cerrada; se notificó al Director técnico y al Superadministrador.');
+    }
+
+    public function cancel(Request $request, Repair $repair, AuditService $audit, AssetLifecycleService $lifecycle): RedirectResponse
+    {
+        Gate::authorize('gestionar-inventario');
+        $user = $request->user();
+        abort_unless($repair->tecnico_id === $user->id || $user->tieneRol(Role::DIRECTOR_TECNICO, Role::SUPERADMIN), 403);
+        $data = $request->validate([
+            'motivo_cancelacion' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+
+        $repair = DB::transaction(function () use ($repair, $data, $user, $audit, $lifecycle) {
+            $repair = Repair::query()->with('asset.status')->lockForUpdate()->findOrFail($repair->id);
+            abort_if(in_array($repair->estado, ['resuelta', 'cancelada'], true), 422, 'La reparación ya fue finalizada.');
+            abort_unless($repair->asset->status?->codigo === 'en_reparacion', 422, 'El activo ya no está marcado en reparación.');
+            $before = $repair->toArray();
+            $reason = 'Reparación cancelada: '.$data['motivo_cancelacion'];
+            $lifecycle->changeStatus($repair->asset, 'operativo', $user, $reason);
+            $repair->update(['estado' => 'cancelada', 'resultado' => $data['motivo_cancelacion'], 'finalizado_at' => now()]);
+            $audit->record($user, 'cancelar', 'reparacion', $repair->id, $before, $repair->fresh()->toArray(), $data['motivo_cancelacion'], notify: false);
+
+            return $repair->fresh(['asset']);
+        });
+
+        $recipientIds = User::query()->where('activo', true)
+            ->where(function ($query) use ($repair) {
+                $query->where('id', $repair->tecnico_id)
+                    ->orWhereHas('rol', fn ($roles) => $roles->whereIn('codigo', [Role::DIRECTOR_TECNICO, Role::SUPERADMIN]));
+            })->pluck('id')->unique();
+        foreach ($recipientIds as $recipientId) {
+            DB::table('notificaciones')->insert([
+                'usuario_id' => $recipientId,
+                'titulo' => 'Reparación cancelada',
+                'mensaje' => "{$user->name} canceló la reparación del activo {$repair->asset->activo_fijo}. Motivo: {$repair->resultado}",
+                'url' => route('repairs.index'),
+                'creado_at' => now(),
+            ]);
+        }
+
+        return redirect()->route('repairs.index')->with('success', 'Reparación cancelada; el activo volvió a estado operativo.');
     }
 
     public function evidence(Repair $repair, RepairEvidence $evidence)

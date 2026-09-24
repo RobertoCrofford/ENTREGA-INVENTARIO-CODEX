@@ -4,12 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\Asset;
 use App\Models\Product;
+use App\Models\Repair;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -376,6 +379,7 @@ class SecurityRegressionTest extends TestCase
 
     public function test_repair_updates_asset_status_and_requires_a_documented_outcome(): void
     {
+        Storage::fake('local');
         $technician = $this->user(Role::TECNICO);
         $asset = $this->asset($technician);
 
@@ -384,6 +388,7 @@ class SecurityRegressionTest extends TestCase
             'tecnico_id' => $technician->id,
             'prioridad' => 'media',
             'falla_reportada' => 'El equipo no inicia correctamente.',
+            'evidencias' => [UploadedFile::fake()->create('ficha-inicial.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
         ])->assertRedirect(route('repairs.index'));
 
         $repair = DB::table('reparaciones')->where('activo_id', $asset->id)->first();
@@ -395,6 +400,54 @@ class SecurityRegressionTest extends TestCase
 
         $this->assertSame('no_operativo', $asset->fresh()->status->codigo);
         $this->assertDatabaseHas('reparaciones', ['id' => $repair->id, 'estado' => 'resuelta']);
+    }
+
+    public function test_repair_requires_a_word_technical_sheet(): void
+    {
+        Storage::fake('local');
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+
+        $this->actingAs($technician)->post(route('repairs.store'), [
+            'activo_id' => $asset->id,
+            'tecnico_id' => $technician->id,
+            'prioridad' => 'media',
+            'falla_reportada' => 'La pantalla presenta daños luego de una caída.',
+        ])->assertSessionHasErrors('evidencias');
+
+        $this->actingAs($technician)->post(route('repairs.store'), [
+            'activo_id' => $asset->id,
+            'tecnico_id' => $technician->id,
+            'prioridad' => 'media',
+            'falla_reportada' => 'La pantalla presenta daños luego de una caída.',
+            'evidencias' => [UploadedFile::fake()->create('ficha-tecnica.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+        ])->assertRedirect(route('repairs.index'));
+
+        $this->assertDatabaseHas('evidencias_reparacion', ['nombre_original' => 'ficha-tecnica.docx']);
+    }
+
+    public function test_assigned_technician_can_cancel_a_repair_and_restore_the_asset(): void
+    {
+        Storage::fake('local');
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+
+        $this->actingAs($technician)->post(route('repairs.store'), [
+            'activo_id' => $asset->id,
+            'tecnico_id' => $technician->id,
+            'prioridad' => 'media',
+            'falla_reportada' => 'El equipo presenta una falla intermitente.',
+            'evidencias' => [UploadedFile::fake()->create('ficha-cancelacion.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+        ])->assertRedirect(route('repairs.index'));
+
+        $repair = Repair::query()->where('activo_id', $asset->id)->firstOrFail();
+        $this->actingAs($technician)->post(route('repairs.cancel', $repair), [
+            'motivo_cancelacion' => 'El diagnóstico confirmó que no se requiere intervención.',
+        ])->assertRedirect(route('repairs.index'));
+
+        $this->assertSame('operativo', $asset->fresh()->status->codigo);
+        $this->assertDatabaseHas('reparaciones', ['id' => $repair->id, 'estado' => 'cancelada']);
+        $this->assertDatabaseHas('eventos_activo', ['activo_id' => $asset->id, 'motivo' => 'Reparación cancelada: El diagnóstico confirmó que no se requiere intervención.']);
     }
 
     private function user(string $roleCode): User
