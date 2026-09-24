@@ -115,6 +115,14 @@ class SecurityRegressionTest extends TestCase
             ->assertOk();
     }
 
+    public function test_audit_archive_form_includes_its_csrf_token(): void
+    {
+        $this->actingAs($this->user(Role::SUPERADMIN))
+            ->get(route('audit-logs.index'))
+            ->assertOk()
+            ->assertSee('name="_token"', false);
+    }
+
     public function test_an_invited_user_can_scan_and_request_disposals_but_cannot_consult_or_export_inventory(): void
     {
         $guest = $this->user(Role::INVITADO);
