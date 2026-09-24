@@ -426,6 +426,41 @@ class SecurityRegressionTest extends TestCase
         $this->assertDatabaseHas('evidencias_reparacion', ['nombre_original' => 'ficha-tecnica.docx']);
     }
 
+    public function test_asset_import_notifies_operational_roles_only_after_confirmation(): void
+    {
+        Storage::fake('local');
+        $technician = $this->user(Role::TECNICO);
+        $superadministrator = $this->user(Role::SUPERADMIN);
+        $guest = $this->user(Role::INVITADO);
+        $csv = implode("\n", [
+            'activo_fijo,sede_codigo,tipo_codigo,estado_codigo,uso,ubicacion_codigo,numero_serie,marca,modelo,costo_neto,responsable_nombre,responsable_email,responsable_departamento,observacion',
+            'AF-IMPORT-001,MAIPU,notebook,operativo,administrativo,BOD-MAIPU,SN-IMPORT-001,Lenovo,ThinkPad,450000,,,,Carga de prueba',
+        ]);
+
+        $this->actingAs($technician)->post(route('imports.assets.preview'), [
+            'archivo' => UploadedFile::fake()->createWithContent('activos.csv', $csv),
+        ])->assertRedirect();
+
+        $import = DB::table('importaciones')->where('archivo_nombre', 'activos.csv')->firstOrFail();
+        $this->assertDatabaseMissing('notificaciones', ['titulo' => 'Importación de activos completada']);
+
+        $this->actingAs($technician)->post(route('imports.assets.confirm', $import->id))
+            ->assertRedirect(route('imports.assets.show', $import->id));
+
+        $this->assertDatabaseHas('notificaciones', [
+            'usuario_id' => $technician->id,
+            'titulo' => 'Importación de activos completada',
+        ]);
+        $this->assertDatabaseHas('notificaciones', [
+            'usuario_id' => $superadministrator->id,
+            'titulo' => 'Importación de activos completada',
+        ]);
+        $this->assertDatabaseMissing('notificaciones', [
+            'usuario_id' => $guest->id,
+            'titulo' => 'Importación de activos completada',
+        ]);
+    }
+
     public function test_assigned_technician_can_cancel_a_repair_and_restore_the_asset(): void
     {
         Storage::fake('local');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
+use App\Models\Role;
 use App\Services\AuditService;
 use DOMDocument;
 use DOMXPath;
@@ -174,7 +175,40 @@ class AssetImportController extends Controller
             DB::table('importaciones')->where('id', $import->id)->update(['estado' => 'completada', 'filas_exitosas' => count($rows) - $invalidRows, 'filas_error' => $invalidRows, 'finalizado_at' => now()]);
         });
 
+        $completedImport = DB::table('importaciones')->where('id', $import->id)->firstOrFail();
+        $this->notifyCompletion($completedImport);
+
         return redirect()->route('imports.assets.show', $import->id)->with('success', 'Importación completada.');
+    }
+
+    private function notifyCompletion(object $import): void
+    {
+        $recipients = DB::table('users')
+            ->join('roles', 'roles.id', '=', 'users.rol_id')
+            ->where('users.activo', true)
+            ->whereIn('roles.codigo', [Role::SUPERADMIN, Role::DIRECTOR_TECNICO, Role::TECNICO])
+            ->pluck('users.id');
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        $valid = (int) $import->filas_exitosas;
+        $errors = (int) $import->filas_error;
+        $message = "La importación {$import->archivo_nombre} finalizó con {$valid} activo(s) registrado(s).";
+        if ($errors > 0) {
+            $message .= " {$errors} fila(s) quedaron con error.";
+        }
+        $createdAt = now();
+        $notifications = $recipients->map(fn (int $userId) => [
+            'usuario_id' => $userId,
+            'titulo' => 'Importación de activos completada',
+            'mensaje' => $message,
+            'url' => route('imports.assets.show', $import->id),
+            'creado_at' => $createdAt,
+        ])->all();
+
+        DB::table('notificaciones')->insert($notifications);
     }
 
     public function rejected(int $import)
