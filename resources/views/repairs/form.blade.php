@@ -15,7 +15,7 @@
             <div class="alert alert-danger">{{ $errors->first() }}</div>
         @endif
 
-        <form method="POST" action="{{ route('repairs.store') }}" enctype="multipart/form-data">
+        <form id="repair-form" method="POST" action="{{ route('repairs.store') }}" enctype="multipart/form-data">
             @csrf
 
             <div class="row g-3">
@@ -83,6 +83,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const search = document.getElementById('buscar_activo');
+        const form = document.getElementById('repair-form');
         const assetId = document.getElementById('activo_id');
         const results = document.getElementById('resultados_activos');
         const selected = document.getElementById('activo_seleccionado');
@@ -90,7 +91,7 @@
         const change = document.getElementById('cambiar_activo');
         const feedback = document.getElementById('resultado_busqueda_activo');
         const options = Array.from(results?.querySelectorAll('.asset-picker-option') ?? []);
-        if (!search || !assetId || !results || !selected || !selectedLabel || !change || !feedback) return;
+        if (!form || !search || !assetId || !results || !selected || !selectedLabel || !change || !feedback) return;
         const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
         const filter = () => {
@@ -107,6 +108,12 @@
             search.classList.add('d-none');
             feedback.textContent = 'Activo listo para registrar la reparación.';
         };
+        const selectSingleResult = () => {
+            const matches = options.filter((option) => !option.hidden);
+            if (matches.length !== 1) return false;
+            select(matches[0]);
+            return true;
+        };
         results.addEventListener('click', (event) => {
             const option = event.target.closest('.asset-picker-option');
             if (option) select(option);
@@ -120,7 +127,24 @@
             filter();
             search.focus();
         });
-        search.addEventListener('input', filter);
+        search.addEventListener('input', () => {
+            search.setCustomValidity('');
+            filter();
+        });
+        search.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (!selectSingleResult()) {
+                feedback.textContent = 'Selecciona un activo de los resultados antes de continuar.';
+            }
+        });
+        form.addEventListener('submit', (event) => {
+            if (assetId.value || selectSingleResult()) return;
+            event.preventDefault();
+            search.setCustomValidity('Selecciona un activo de los resultados antes de registrar la reparación.');
+            search.reportValidity();
+            search.focus();
+        });
         const previous = options.find((option) => option.dataset.id === assetId.value);
         if (previous) select(previous);
         else filter();
