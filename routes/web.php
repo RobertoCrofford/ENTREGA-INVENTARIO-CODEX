@@ -98,6 +98,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('asset-disposals/{disposal}/download', [AssetDisposalController::class, 'download'])->name('asset-disposals.download');
         Route::resource('repairs', RepairController::class)->only('index', 'create', 'store');
         Route::get('repairs/{repair}/evidences/{evidence}', [RepairController::class, 'evidence'])->name('repairs.evidence');
+        Route::put('repairs/{repair}/evidences/{evidence}', [RepairController::class, 'replaceEvidence'])->name('repairs.evidences.replace');
         Route::post('repairs/{repair}/complete', [RepairController::class, 'complete'])->name('repairs.complete');
         Route::post('repairs/{repair}/cancel', [RepairController::class, 'cancel'])->name('repairs.cancel');
     });

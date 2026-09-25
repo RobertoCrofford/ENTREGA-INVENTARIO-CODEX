@@ -456,6 +456,30 @@ class SecurityRegressionTest extends TestCase
         $this->assertDatabaseHas('evidencias_reparacion', ['nombre_original' => 'ficha-tecnica.docx']);
     }
 
+    public function test_assigned_technician_can_replace_the_open_repair_technical_sheet(): void
+    {
+        Storage::fake('local');
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+        $this->actingAs($technician)->post(route('repairs.store'), [
+            'activo_id' => $asset->id,
+            'tecnico_id' => $technician->id,
+            'prioridad' => 'media',
+            'falla_reportada' => 'El equipo no inicia correctamente.',
+            'evidencias' => [UploadedFile::fake()->create('ficha-inicial.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+        ]);
+        $repair = Repair::query()->where('activo_id', $asset->id)->firstOrFail();
+        $evidence = $repair->evidences()->firstOrFail();
+        $oldPath = $evidence->ruta;
+
+        $this->actingAs($technician)->put(route('repairs.evidences.replace', [$repair, $evidence]), [
+            'evidencia' => UploadedFile::fake()->create('ficha-corregida.docx', 120, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+        ])->assertRedirect(route('repairs.index'));
+
+        $this->assertDatabaseHas('evidencias_reparacion', ['id' => $evidence->id, 'nombre_original' => 'ficha-corregida.docx']);
+        Storage::disk('local')->assertMissing($oldPath);
+    }
+
     public function test_asset_import_notifies_operational_roles_only_after_confirmation(): void
     {
         Storage::fake('local');

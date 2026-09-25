@@ -190,6 +190,49 @@ class RepairController extends Controller
         return Storage::disk('local')->response($evidence->ruta, $evidence->nombre_original, ['Content-Type' => $evidence->mime]);
     }
 
+    public function replaceEvidence(Request $request, Repair $repair, RepairEvidence $evidence, AuditService $audit): RedirectResponse
+    {
+        Gate::authorize('gestionar-inventario');
+        $user = $request->user();
+        abort_unless($evidence->reparacion_id === $repair->id, 404);
+        abort_unless($repair->tecnico_id === $user->id || $user->tieneRol(Role::DIRECTOR_TECNICO, Role::SUPERADMIN), 403);
+        abort_if($repair->estado !== 'abierta', 422, 'La ficha técnica solo puede reemplazarse mientras la reparación está abierta.');
+        $data = $request->validate([
+            'evidencia' => ['required', 'file', 'mimes:docx', 'max:10240'],
+        ]);
+
+        $file = $data['evidencia'];
+        $newPath = $file->store("reparaciones/{$repair->id}", 'local');
+
+        try {
+            $oldPath = DB::transaction(function () use ($repair, $evidence, $file, $newPath, $user, $audit) {
+                $repair = Repair::query()->lockForUpdate()->findOrFail($repair->id);
+                abort_if($repair->estado !== 'abierta', 422, 'La ficha técnica solo puede reemplazarse mientras la reparación está abierta.');
+                $evidence = RepairEvidence::query()->lockForUpdate()->where('reparacion_id', $repair->id)->findOrFail($evidence->id);
+                $before = $evidence->toArray();
+                $oldPath = $evidence->ruta;
+                $evidence->update([
+                    'ruta' => $newPath,
+                    'nombre_original' => $file->getClientOriginalName(),
+                    'mime' => $file->getMimeType(),
+                    'tamano' => $file->getSize(),
+                    'subido_por' => $user->id,
+                ]);
+                $audit->record($user, 'actualizar', 'reparacion', $repair->id, $before, $evidence->fresh()->toArray(), 'Ficha técnica reemplazada.', notify: false);
+
+                return $oldPath;
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($newPath);
+
+            throw $exception;
+        }
+
+        Storage::disk('local')->delete($oldPath);
+
+        return redirect()->route('repairs.index')->with('success', 'Ficha técnica reemplazada correctamente.');
+    }
+
     private function technicians()
     {
         return User::query()->where('activo', true)->whereHas('rol', fn ($roles) => $roles->whereIn('codigo', [Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN]))->orderBy('name')->get();
