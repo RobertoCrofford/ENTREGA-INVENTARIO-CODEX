@@ -35,11 +35,21 @@ class AssetCodeMatch
             return false;
         }
 
-        return self::withoutTrailingZeroes($storedCode) === self::withoutTrailingZeroes($searchedCode);
+        return self::canonicalNumericCode($storedCode) === self::canonicalNumericCode($searchedCode);
     }
 
-    private static function withoutTrailingZeroes(string $code): string
+    /**
+     * Returns the numeric identity used for scans and duplicate prevention.
+     * Non-numeric codes deliberately have no alternate representation.
+     */
+    public static function canonicalNumericCode(?string $code): ?string
     {
+        $code = trim((string) $code);
+
+        if (! preg_match('/^\d{6,}$/', $code)) {
+            return null;
+        }
+
         return rtrim($code, '0') ?: '0';
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Asset;
 use App\Models\Role;
 use App\Services\AuditService;
+use App\Support\AssetCodeMatch;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Http\RedirectResponse;
@@ -440,11 +441,14 @@ class AssetImportController extends Controller
     {
         $errors = [];
         $seen = [];
+        $seenCanonicalCodes = [];
         $sites = DB::table('sedes')->pluck('id', 'codigo');
         $types = DB::table('tipos_activo')->where('activo', true)->pluck('id', 'codigo');
         $statuses = DB::table('estados_activo')->where('activo', true)->pluck('id', 'codigo');
         $locations = DB::table('ubicaciones')->where('activo', true)->get()->keyBy('codigo');
         $existing = Asset::query()->pluck('id', 'activo_fijo');
+        $existingCanonicalCodes = $existing->keys()
+            ->mapWithKeys(fn (string $code) => ($canonical = AssetCodeMatch::canonicalNumericCode($code)) === null ? [] : [$canonical => true]);
         foreach ($rows as $row) {
             $add = function (string $field, string $code, string $message) use (&$errors, $row): void {
                 $errors[] = ['fila' => $row['_fila'], 'campo' => $field, 'codigo_error' => $code, 'mensaje' => $message, 'datos_json' => json_encode(collect($row)->except('_fila')->all())];
@@ -457,8 +461,15 @@ class AssetImportController extends Controller
                 $add('activo_fijo', 'duplicado_archivo', 'El activo fijo está repetido en el archivo.');
             }
             $seen[$fixed] = true;
-            if ($existing->has($fixed)) {
-                $add('activo_fijo', 'duplicado_base', 'El activo fijo ya existe.');
+            $canonicalCode = AssetCodeMatch::canonicalNumericCode($fixed);
+            if ($canonicalCode !== null && isset($seenCanonicalCodes[$canonicalCode])) {
+                $add('activo_fijo', 'duplicado_archivo', 'El activo fijo coincide con otro código del archivo al ignorar ceros finales.');
+            }
+            if ($canonicalCode !== null) {
+                $seenCanonicalCodes[$canonicalCode] = true;
+            }
+            if ($existing->has($fixed) || ($canonicalCode !== null && $existingCanonicalCodes->has($canonicalCode))) {
+                $add('activo_fijo', 'duplicado_base', 'El activo fijo ya existe o coincide con uno existente al ignorar ceros finales.');
             }
             if (! $sites->has(trim($row['sede_codigo']))) {
                 $add('sede_codigo', 'sede_invalida', 'La sede no existe o está inactiva.');

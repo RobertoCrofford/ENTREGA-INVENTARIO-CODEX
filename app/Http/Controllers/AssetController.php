@@ -182,6 +182,13 @@ class AssetController extends Controller
             $rules['estado_activo_id'] = ['required', Rule::exists('estados_activo', 'id')->where(fn ($query) => $query->where('activo', true)->where('codigo', '!=', 'dado_baja'))];
         }
         $data = $request->validate($rules);
+        $sameCodeAssetIds = AssetCodeMatch::assetIds($data['activo_fijo']);
+        $currentAssetId = $request->route('asset')?->id;
+        if (collect($sameCodeAssetIds)->contains(fn (int $assetId) => $assetId !== $currentAssetId)) {
+            throw ValidationException::withMessages([
+                'activo_fijo' => 'Ya existe un activo con este código (incluyendo códigos que solo agregan ceros al final).',
+            ]);
+        }
         if (AssetType::query()->whereKey($data['tipo_activo_id'])->where('es_pc', true)->exists() && blank($data['procesador'] ?? null)) {
             throw ValidationException::withMessages(['procesador' => 'El procesador es obligatorio para activos de tipo PC.']);
         }
