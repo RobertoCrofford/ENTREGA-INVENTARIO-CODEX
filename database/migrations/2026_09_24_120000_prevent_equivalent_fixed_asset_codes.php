@@ -18,10 +18,12 @@ return new class extends Migration
 
         // Older installations can already contain equivalent codes. Do not
         // prevent deployment or change historic inventory automatically.
-        if (DB::table('activos')->whereNotNull('activo_fijo_normalizado')
+        if (DB::table('activos')->selectRaw('1')->whereNotNull('activo_fijo_normalizado')
             ->groupBy('activo_fijo_normalizado')
             ->havingRaw('COUNT(*) > 1')
-            ->exists()) {
+            ->limit(1)
+            ->get()
+            ->isNotEmpty()) {
             return;
         }
 
