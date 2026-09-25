@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AuditService;
+use App\Support\AssetCodeMatch;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -51,17 +52,32 @@ class AuditLogController extends Controller
 
         $entriesQuery = DB::table('bitacora')
             ->leftJoin('users', 'users.id', '=', 'bitacora.usuario_id')
-            ->select('bitacora.*', 'users.name as usuario_nombre', 'users.username as usuario_username');
+            ->leftJoin('activos as activo_bitacora', function ($join) {
+                $join->on('activo_bitacora.id', '=', 'bitacora.entidad_id')
+                    ->where('bitacora.entidad_tipo', '=', 'activo');
+            })
+            ->select('bitacora.*', 'users.name as usuario_nombre', 'users.username as usuario_username', 'activo_bitacora.activo_fijo as activo_fijo');
 
         if (! empty($filters['q'])) {
             $search = trim($filters['q']);
-            $entriesQuery->where(function ($query) use ($search) {
+            $matchingAssetIds = AssetCodeMatch::assetIds($search);
+            $entriesQuery->where(function ($query) use ($search, $matchingAssetIds) {
                 $query->where('bitacora.accion', 'like', "%{$search}%")
                     ->orWhere('bitacora.entidad_tipo', 'like', "%{$search}%")
                     ->orWhere('bitacora.entidad_id', 'like', "%{$search}%")
                     ->orWhere('bitacora.motivo', 'like', "%{$search}%")
                     ->orWhere('users.name', 'like', "%{$search}%")
-                    ->orWhere('users.username', 'like', "%{$search}%");
+                    ->orWhere('users.username', 'like', "%{$search}%")
+                    ->orWhere('activo_bitacora.activo_fijo', 'like', "%{$search}%")
+                    ->orWhere('activo_bitacora.numero_serie', 'like', "%{$search}%")
+                    ->orWhere('activo_bitacora.marca', 'like', "%{$search}%")
+                    ->orWhere('activo_bitacora.modelo', 'like', "%{$search}%");
+                if ($matchingAssetIds) {
+                    $query->orWhere(function ($assetEntries) use ($matchingAssetIds) {
+                        $assetEntries->where('bitacora.entidad_tipo', 'activo')
+                            ->whereIn('bitacora.entidad_id', $matchingAssetIds);
+                    });
+                }
             });
         }
         if (! empty($filters['desde'])) {

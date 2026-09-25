@@ -123,6 +123,28 @@ class SecurityRegressionTest extends TestCase
             ->assertSee('name="_token"', false);
     }
 
+    public function test_audit_log_search_finds_asset_entries_by_fixed_code(): void
+    {
+        $superadministrator = $this->user(Role::SUPERADMIN);
+        $asset = $this->asset($superadministrator);
+        $asset->update(['activo_fijo' => '500081145']);
+        DB::table('bitacora')->insert([
+            'usuario_id' => $superadministrator->id,
+            'accion' => 'actualizar',
+            'entidad_tipo' => 'activo',
+            'entidad_id' => $asset->id,
+            'correlation_id' => (string) Str::uuid(),
+            'resultado' => 'exitoso',
+            'creado_at' => now(),
+        ]);
+
+        $this->actingAs($superadministrator)
+            ->get(route('audit-logs.index', ['q' => '500081145000']))
+            ->assertOk()
+            ->assertSee('Actualizar')
+            ->assertSee('#'.$asset->id);
+    }
+
     public function test_an_invited_user_can_scan_and_request_disposals_but_cannot_consult_or_export_inventory(): void
     {
         $guest = $this->user(Role::INVITADO);
