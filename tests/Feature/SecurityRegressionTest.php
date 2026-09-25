@@ -507,6 +507,50 @@ class SecurityRegressionTest extends TestCase
             ->assertSee('500081145');
     }
 
+    public function test_manual_asset_registration_rejects_a_zero_padded_duplicate_fixed_code(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $existing = $this->asset($technician);
+        $existing->update(['activo_fijo' => '500081145']);
+
+        $this->actingAs($technician)
+            ->post(route('assets.store'), [
+                'sede_id' => $existing->sede_id,
+                'tipo_activo_id' => $existing->tipo_activo_id,
+                'estado_activo_id' => $existing->estado_activo_id,
+                'uso' => 'administrativo',
+                'ubicacion_actual_id' => $existing->ubicacion_actual_id,
+                'activo_fijo' => '500081145000',
+                'costo_neto_actual' => 300000,
+            ])
+            ->assertSessionHasErrors('activo_fijo');
+
+        $this->assertDatabaseCount('activos', 1);
+    }
+
+    public function test_asset_import_rejects_a_zero_padded_duplicate_fixed_code(): void
+    {
+        Storage::fake('local');
+        $technician = $this->user(Role::TECNICO);
+        $existing = $this->asset($technician);
+        $existing->update(['activo_fijo' => '500081145']);
+        $csv = implode("\n", [
+            'activo_fijo,sede_codigo,tipo_codigo,estado_codigo,uso,ubicacion_codigo,numero_serie,marca,modelo,costo_neto,responsable_nombre,responsable_email,responsable_departamento,observacion',
+            '500081145000,MAIPU,notebook,operativo,administrativo,BOD-MAIPU,SN-IMPORT-002,Lenovo,ThinkPad,450000,,,,Carga duplicada',
+        ]);
+
+        $this->actingAs($technician)->post(route('imports.assets.preview'), [
+            'archivo' => UploadedFile::fake()->createWithContent('activo-duplicado.csv', $csv),
+        ])->assertRedirect();
+
+        $import = DB::table('importaciones')->where('archivo_nombre', 'activo-duplicado.csv')->firstOrFail();
+        $this->assertDatabaseHas('errores_importacion', [
+            'importacion_id' => $import->id,
+            'campo' => 'activo_fijo',
+            'codigo_error' => 'duplicado_base',
+        ]);
+    }
+
     public function test_assigned_technician_can_cancel_a_repair_and_restore_the_asset(): void
     {
         Storage::fake('local');
