@@ -11,6 +11,9 @@ class AuditService
 {
     public function record(?User $user, string $action, string $entityType, int|string|null $entityId, array $before = [], array $after = [], ?string $reason = null, string $result = 'exitoso', bool $notify = true): void
     {
+        $before = $this->withoutSensitiveValues($before);
+        $after = $this->withoutSensitiveValues($after);
+
         DB::table('bitacora')->insert([
             'usuario_id' => $user?->id, 'accion' => $action, 'entidad_tipo' => $entityType, 'entidad_id' => $entityId,
             'antes_json' => $before ? json_encode($before, JSON_THROW_ON_ERROR) : null,
@@ -57,5 +60,28 @@ class AuditService
                 'creado_at' => now(),
             ]);
         }
+    }
+
+    /**
+     * The audit trail must explain changes without becoming a second store of credentials.
+     * This also protects future forms should new sensitive fields be added.
+     */
+    private function withoutSensitiveValues(array $values): array
+    {
+        $sensitive = ['password', 'password_confirmation', 'remember_token', 'token', 'secret', 'api_key'];
+
+        foreach ($values as $key => $value) {
+            if (in_array(strtolower((string) $key), $sensitive, true)) {
+                unset($values[$key]);
+
+                continue;
+            }
+
+            if (is_array($value)) {
+                $values[$key] = $this->withoutSensitiveValues($value);
+            }
+        }
+
+        return $values;
     }
 }

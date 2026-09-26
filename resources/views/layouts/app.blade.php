@@ -65,6 +65,7 @@
                 <div class="sidebar-section mt-4">Administración</div>
                 <nav class="sidebar-nav">
                     @can('administrar-usuarios')<a class="sidebar-link @if(request()->routeIs('users.*')) active @endif" href="{{ route('users.index') }}"><i class="bi bi-people"></i>Usuarios</a>@endcan
+                    @can('administrar-usuarios')<a class="sidebar-link @if(request()->routeIs('system-status.*')) active @endif" href="{{ route('system-status.index') }}"><i class="bi bi-activity"></i>Estado del sistema</a>@endcan
                     @can('generar-bitacora')<a class="sidebar-link @if(request()->routeIs('audit-logs.*')) active @endif" href="{{ route('audit-logs.index') }}"><i class="bi bi-journal-text"></i>Bitácora</a>@endcan
                 </nav>
             @endcanany

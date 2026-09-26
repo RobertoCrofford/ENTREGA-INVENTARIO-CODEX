@@ -72,7 +72,7 @@ Para reiniciar desde cero en desarrollo se deben detener los servicios y elimina
 | `migrate` | Ejecuta las migraciones técnicas una vez por inicio. |
 | `queue` | Procesa colas con driver de base de datos. |
 | `scheduler` | Ejecuta el planificador Laravel. |
-| `backup` | Genera un dump verificado diario en un volumen persistente de Docker. |
+| `backup` | Genera un dump verificado diario en un volumen persistente de Docker y se marca como no saludable si no existe una copia íntegra reciente. |
 
 Los valores de `.env.example` son exclusivos para desarrollo. Producción requiere secretos propios, HTTPS configurado en el proxy, correo institucional y un destino externo cifrado y verificado para respaldos.
 
@@ -85,6 +85,20 @@ Los valores de `.env.example` son exclusivos para desarrollo. Producción requie
 5. En cada actualización, ejecuta `docker compose up --build -d`, luego `docker compose exec app php artisan optimize:clear` y revisa `https://tu-dominio/up`. El contenedor reconoce los cambios de código sin conservar rutas o vistas antiguas.
 
 Los respaldos diarios se crean de forma temporal y se publican solo después de verificarse. Se conservan en un volumen persistente de Docker, fuera del repositorio. Para producción, cifra la copia y envíala a un segundo destino con acceso restringido; conserva y prueba periódicamente una restauración.
+
+### Revisión periódica de respaldos
+
+En Portainer, revisa que el contenedor `backup` figure como **healthy**. Eso confirma que existe una copia válida, comprobada con integridad y con una antigüedad máxima de 26 horas. Si aparece como `unhealthy`, el inventario sigue funcionando, pero se debe revisar el registro del contenedor y generar una nueva copia antes de continuar con cambios relevantes.
+
+El superadministrador también puede usar **Estado del sistema → Generar respaldo ahora**. La solicitud se entrega al servicio de respaldo y se ejecuta en menos de un minuto, sin detener la aplicación ni la base de datos.
+
+### Operación para el equipo institucional
+
+- **Importaciones:** carga el archivo, espera el resultado de la validación y confirma solo después de revisar las filas con error. La pantalla evita envíos dobles y advierte antes de cerrar o recargar durante una operación extensa. Cada importación registra un resultado y notifica al equipo autorizado cuando termina.
+- **Bitácora:** conserva usuario, fecha, acción, motivo y valores anteriores/posteriores. Desde la pantalla se pueden desplegar los cambios concretos de cada registro. Las contraseñas y secretos no se guardan en la bitácora.
+- **Estado del sistema:** solo el superadministrador ve el menú **Estado del sistema**. Reúne la salud de la base de datos, los respaldos, la cola y las importaciones. El planificador revisa estos puntos cada 15 minutos y crea una sola alerta interna por incidente, sin inundar las notificaciones.
+- **Alertas:** consulta la campana del sistema. Se notifican situaciones relevantes, como importaciones finalizadas, solicitudes pendientes y problemas de supervisión; los escaneos normales no generan ruido.
+- **Actualizaciones:** en Portainer usa **Pull and redeploy** desde `main`. Revisa que los contenedores `app`, `proxy`, `database` y `backup` terminen en estado saludable antes de entregar el sistema a usuarios.
 
 ### Despliegue desde Portainer
 

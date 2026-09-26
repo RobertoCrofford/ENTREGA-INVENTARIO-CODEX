@@ -103,12 +103,27 @@ document.querySelectorAll('[data-notification-read-url]').forEach((button) => {
 });
 
 document.querySelectorAll('form').forEach((form) => {
-    form.addEventListener('submit', () => {
+    form.addEventListener('submit', (event) => {
+        if (form.dataset.confirmMessage && !window.confirm(form.dataset.confirmMessage)) {
+            event.preventDefault();
+            return;
+        }
         const submitButton = form.querySelector('button[type="submit"], button:not([type])');
         if (!submitButton || submitButton.disabled) return;
 
         submitButton.disabled = true;
         submitButton.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>');
+    }, { once: true });
+});
+
+document.querySelectorAll('form[data-long-running-form]').forEach((form) => {
+    form.addEventListener('submit', () => {
+        form.querySelectorAll('[data-long-running-message]').forEach((message) => message.classList.remove('d-none'));
+        const warnBeforeLeaving = (event) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        window.addEventListener('beforeunload', warnBeforeLeaving, { once: true });
     }, { once: true });
 });
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Asset;
+use App\Jobs\ProcessAssetImport;
 use App\Models\Product;
 use App\Models\Repair;
 use App\Models\Role;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -483,6 +485,7 @@ class SecurityRegressionTest extends TestCase
     public function test_asset_import_notifies_operational_roles_only_after_confirmation(): void
     {
         Storage::fake('local');
+        Queue::fake();
         $technician = $this->user(Role::TECNICO);
         $superadministrator = $this->user(Role::SUPERADMIN);
         $guest = $this->user(Role::INVITADO);
@@ -500,6 +503,10 @@ class SecurityRegressionTest extends TestCase
 
         $this->actingAs($technician)->post(route('imports.assets.confirm', $import->id))
             ->assertRedirect(route('imports.assets.show', $import->id));
+
+        $this->assertDatabaseHas('importaciones', ['id' => $import->id, 'estado' => 'en_cola']);
+        Queue::assertPushed(ProcessAssetImport::class, fn (ProcessAssetImport $job) => $job->importId === $import->id && $job->actorId === $technician->id);
+        app(\App\Http\Controllers\AssetImportController::class)->process($import->id, $technician, app(\App\Services\AuditService::class));
 
         $this->assertDatabaseHas('notificaciones', [
             'usuario_id' => $technician->id,

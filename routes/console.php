@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('eventos:notificar-hoy')->dailyAt('07:30')->withoutOverlapping();
+Schedule::command('system:monitor')->everyFifteenMinutes()->withoutOverlapping();

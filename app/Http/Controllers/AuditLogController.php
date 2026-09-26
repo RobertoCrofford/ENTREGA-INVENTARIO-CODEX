@@ -93,12 +93,42 @@ class AuditLogController extends Controller
         }
 
         $entries = $entriesQuery->orderByDesc('bitacora.id')->paginate(25, ['*'], 'eventos')->withQueryString();
+        $entries->getCollection()->transform(function (object $entry): object {
+            $before = json_decode($entry->antes_json ?: '[]', true) ?: [];
+            $after = json_decode($entry->despues_json ?: '[]', true) ?: [];
+            $entry->changes = collect(array_unique([...array_keys($before), ...array_keys($after)]))
+                ->filter(fn (string $field) => ($before[$field] ?? null) !== ($after[$field] ?? null))
+                ->map(fn (string $field) => [
+                    'field' => str_replace('_', ' ', $field),
+                    'before' => $this->auditValue($before[$field] ?? null),
+                    'after' => $this->auditValue($after[$field] ?? null),
+                ])->values();
+
+            return $entry;
+        });
         $archives = DB::table('archivos_auditoria')->orderByDesc('id')->paginate(20);
         $users = DB::table('users')->where('activo', true)->orderBy('name')->get(['id', 'name', 'username']);
         $actions = DB::table('bitacora')->distinct()->orderBy('accion')->pluck('accion');
         $entities = DB::table('bitacora')->distinct()->orderBy('entidad_tipo')->pluck('entidad_tipo');
 
         return view('audit-logs.index', compact('archives', 'entries', 'users', 'actions', 'entities'));
+    }
+
+    private function auditValue(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return 'Sin valor';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Sí' : 'No';
+        }
+
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: 'Sin valor';
+        }
+
+        return (string) $value;
     }
 
     public function generate(Request $request, AuditService $audit): RedirectResponse

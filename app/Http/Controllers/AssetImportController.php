@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Models\Role;
+use App\Models\User;
+use App\Jobs\ProcessAssetImport;
 use App\Services\AuditService;
 use App\Support\AssetCodeMatch;
 use DOMDocument;
@@ -102,7 +104,7 @@ class AssetImportController extends Controller
         abort_unless(in_array($extension, ['csv', 'xlsx'], true), 422, 'Solo se admiten archivos CSV o Excel (.xlsx).');
         $hash = hash_file('sha256', $file->getRealPath());
 
-        if (DB::table('importaciones')->where('tipo', 'activos')->where('archivo_sha256', $hash)->whereIn('estado', ['lista', 'procesando', 'completada'])->exists()) {
+        if (DB::table('importaciones')->where('tipo', 'activos')->where('archivo_sha256', $hash)->whereIn('estado', ['lista', 'en_cola', 'procesando', 'completada'])->exists()) {
             return back()->with('warning', 'Este archivo ya fue revisado o importado. Revisa el historial para evitar duplicados.');
         }
 
@@ -149,14 +151,30 @@ class AssetImportController extends Controller
     public function confirm(Request $request, int $import, AuditService $audit): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');
-        $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->firstOrFail();
+        $import = DB::transaction(function () use ($import) {
+            $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->lockForUpdate()->firstOrFail();
+            abort_unless($import->estado === 'lista', 422, 'Esta importación ya fue procesada.');
+
+            DB::table('importaciones')->where('id', $import->id)->update(['estado' => 'en_cola']);
+
+            return $import;
+        });
+
+        ProcessAssetImport::dispatch($import->id, $request->user()->id);
+
+        return redirect()->route('imports.assets.show', $import->id)->with('success', 'La importación quedó en cola y continuará aunque cierres o recargues esta página. Recibirás una notificación al finalizar.');
+    }
+
+    public function process(int $importId, User $actor, AuditService $audit): void
+    {
+        $import = DB::table('importaciones')->where('id', $importId)->where('tipo', 'activos')->firstOrFail();
         $path = 'importaciones/'.$import->archivo_sha256.'.'.$this->extension($import->archivo_nombre);
         abort_unless(Storage::disk('local')->exists($path), 422, 'No se encontró el archivo de importación.');
-
         $rows = $this->readRows(Storage::disk('local')->path($path));
-        DB::transaction(function () use ($import, $rows, $request, $audit) {
+
+        DB::transaction(function () use ($import, $rows, $actor, $audit) {
             $import = DB::table('importaciones')->where('id', $import->id)->where('tipo', 'activos')->lockForUpdate()->firstOrFail();
-            abort_unless($import->estado === 'lista', 422, 'Esta importación ya fue procesada.');
+            abort_unless($import->estado === 'en_cola', 422, 'Esta importación ya fue procesada.');
             $errors = $this->validateRows($rows);
             $invalid = collect($errors)->pluck('fila')->unique()->flip();
             DB::table('errores_importacion')->where('importacion_id', $import->id)->delete();
@@ -168,9 +186,9 @@ class AssetImportController extends Controller
                 if ($invalid->has($row['_fila'])) {
                     continue;
                 }
-                $asset = Asset::create($this->assetData($row, $request->user()->id));
-                DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'alta', 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_destino_id' => $asset->ubicacion_actual_id, 'motivo' => 'Importación masiva', 'ejecutado_por' => $request->user()->id, 'ocurrido_at' => now()]);
-                $audit->record($request->user(), 'importar', 'activo', $asset->id, after: $asset->toArray(), reason: 'Importación #'.$import->id, notify: false);
+                $asset = Asset::create($this->assetData($row, $actor->id));
+                DB::table('eventos_activo')->insert(['activo_id' => $asset->id, 'tipo' => 'alta', 'estado_destino_id' => $asset->estado_activo_id, 'ubicacion_destino_id' => $asset->ubicacion_actual_id, 'motivo' => 'Importación masiva', 'ejecutado_por' => $actor->id, 'ocurrido_at' => now()]);
+                $audit->record($actor, 'importar', 'activo', $asset->id, after: $asset->toArray(), reason: 'Importación #'.$import->id, notify: false);
             }
             $invalidRows = $invalid->count();
             DB::table('importaciones')->where('id', $import->id)->update(['estado' => 'completada', 'filas_exitosas' => count($rows) - $invalidRows, 'filas_error' => $invalidRows, 'finalizado_at' => now()]);
@@ -178,8 +196,12 @@ class AssetImportController extends Controller
 
         $completedImport = DB::table('importaciones')->where('id', $import->id)->firstOrFail();
         $this->notifyCompletion($completedImport);
+    }
 
-        return redirect()->route('imports.assets.show', $import->id)->with('success', 'Importación completada.');
+    public function markAsFailed(int $importId, \Throwable $exception): void
+    {
+        DB::table('importaciones')->where('id', $importId)->whereIn('estado', ['en_cola', 'procesando'])->update(['estado' => 'fallida', 'finalizado_at' => now()]);
+        report($exception);
     }
 
     private function notifyCompletion(object $import): void

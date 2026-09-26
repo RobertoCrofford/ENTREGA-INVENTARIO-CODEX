@@ -13,6 +13,7 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SystemStatusController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RepairController;
 use App\Http\Controllers\ScanController;
@@ -62,6 +63,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('notifications/summary', [NotificationController::class, 'summary'])->name('notifications.summary');
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::get('notifications/{notificationId}/open', [NotificationController::class, 'open'])->name('notifications.open');
+        Route::get('system-status', [SystemStatusController::class, 'index'])->name('system-status.index');
+        Route::post('system-status/backup', [SystemStatusController::class, 'requestBackup'])->name('system-status.backup');
         Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('notifications/{notificationId}/attend', [NotificationController::class, 'attend'])->name('notifications.attend');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

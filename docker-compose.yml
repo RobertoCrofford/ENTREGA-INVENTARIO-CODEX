@@ -69,6 +69,8 @@ services:
         condition: service_completed_successfully
     volumes:
       - app_storage:/var/www/html/storage
+      - backup_storage:/backups:ro
+      - backup_requests:/backup-requests
     networks:
       - backend
     healthcheck:
@@ -123,6 +125,7 @@ services:
       - backend
     volumes:
       - app_storage:/var/www/html/storage
+      - backup_storage:/backups:ro
     restart: unless-stopped
 
   database:
@@ -158,8 +161,15 @@ services:
         condition: service_healthy
     volumes:
       - backup_storage:/backups
+      - backup_requests:/backup-requests
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/local/bin/backup.sh --health"]
+      interval: 15m
+      timeout: 20s
+      retries: 2
+      start_period: 2m
     restart: unless-stopped
 
   test:
@@ -189,3 +199,4 @@ volumes:
   mysql_data:
   app_storage:
   backup_storage:
+  backup_requests:
