@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
         ] as [$codigo, $nombre, $tipo]) {
             DB::table('ubicaciones')->updateOrInsert(
                 ['sede_id' => $maipuId, 'codigo' => $codigo],
-                ['tipo' => $tipo, 'nombre' => $nombre, 'edificio' => null, 'piso' => null, 'capacidad' => null, 'activo' => true, 'observacion' => null, 'created_at' => now(), 'updated_at' => now()]
+                ['tipo' => $tipo, 'nombre' => $nombre, 'edificio' => null, 'piso' => null, 'activo' => true, 'observacion' => null, 'created_at' => now(), 'updated_at' => now()]
             );
         }
         foreach ([['operativo', 'Operativo'], ['en_reparacion', 'En reparación'], ['no_operativo', 'No operativo'], ['no_localizado', 'No localizado'], ['dado_baja', 'Dado de baja']] as [$codigo, $nombre]) {

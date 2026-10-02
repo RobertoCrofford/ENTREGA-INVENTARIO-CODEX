@@ -18,6 +18,7 @@
         @csrf
         @method('PATCH')
         <div class="mb-3"><label for="uso" class="form-label">Uso del equipo</label><select id="uso" name="uso" class="form-select @error('uso') is-invalid @enderror" required><option value="">Selecciona una opción</option><option value="administrativo" @selected(old('uso') === 'administrativo')>Administrativo</option><option value="alumnos" @selected(old('uso') === 'alumnos')>Alumnos</option><option value="docente" @selected(old('uso') === 'docente')>Docente</option><option value="comun" @selected(old('uso') === 'comun')>Uso común</option></select>@error('uso')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+        <div class="mb-3"><label for="ubicacion_nombre" class="form-label">Ubicación para Inventario físico</label><input id="ubicacion_nombre" name="ubicacion_nombre" class="form-control @error('ubicacion_nombre') is-invalid @enderror" value="{{ old('ubicacion_nombre', $asset->location?->nombre) }}" placeholder="Ej.: Sala de Clases 345"><div class="form-text">Indica dónde está el equipo. Esa sala quedará disponible en Inventario físico.</div>@error('ubicacion_nombre')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
         <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Guardar clasificación</button>
     </form>
 </div></div>

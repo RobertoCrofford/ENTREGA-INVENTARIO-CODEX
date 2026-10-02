@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['rol_id', 'name', 'email', 'username', 'password', 'activo', 'debe_cambiar_password', 'intentos_fallidos', 'bloqueado_hasta', 'ultimo_acceso_at', 'password_cambiado_at'])]
+#[Fillable(['rol_id', 'name', 'email', 'username', 'password', 'activo', 'puede_ver_bitacora', 'debe_cambiar_password', 'intentos_fallidos', 'bloqueado_hasta', 'ultimo_acceso_at', 'password_cambiado_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -30,6 +30,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
+            'puede_ver_bitacora' => 'boolean',
             'debe_cambiar_password' => 'boolean',
             'bloqueado_hasta' => 'datetime',
             'ultimo_acceso_at' => 'datetime',

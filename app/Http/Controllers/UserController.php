@@ -102,6 +102,7 @@ class UserController extends Controller
             'username' => ['required', 'alpha_dash:ascii', 'min:3', 'max:80', Rule::unique('users', 'username')->ignore($user)],
             'rol_id' => ['required', Rule::exists('roles', 'id')->where('activo', true)],
             'activo' => ['required', 'boolean'],
+            'puede_ver_bitacora' => ['required', 'boolean'],
             'password' => $user ? ['nullable', 'confirmed', Password::min(12)->mixedCase()->numbers()] : ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()],
         ]);
     }

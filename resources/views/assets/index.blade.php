@@ -49,7 +49,7 @@
                             <dt class="col-md-3">Uso</dt><dd class="col-md-3">{{ ['administrativo' => 'Administrativo', 'alumnos' => 'Alumnos', 'docente' => 'Docente', 'comun' => 'Uso común', 'sin_definir' => 'Sin definir'][$asset->uso] ?? 'Sin definir' }}</dd>
                             <dt class="col-md-3">Marca / modelo</dt><dd class="col-md-3">{{ trim(($asset->marca ?? '').' '.($asset->modelo ?? '')) ?: '—' }}</dd>
                             <dt class="col-md-3">N.º de serie</dt><dd class="col-md-3">{{ $asset->numero_serie ?: '—' }}</dd>
-                            <dt class="col-md-3">Ubicación</dt><dd class="col-md-3">{{ $asset->location?->nombre ?? '—' }}</dd>
+                            <dt class="col-md-3">Ubicación / asignación</dt><dd class="col-md-3">{{ $asset->location?->nombre ?? ($asset->responsable_nombre ? 'Asignado a: '.$asset->responsable_nombre : '—') }}</dd>
                             <dt class="col-md-3">Responsable</dt><dd class="col-md-3">{{ $asset->responsable_nombre ?: '—' }}</dd>
                             <dt class="col-md-3">Costo neto</dt><dd class="col-md-3">{{ $asset->costo_neto_actual !== null ? '$'.number_format($asset->costo_neto_actual, 0, ',', '.') : '—' }}</dd>
                             <dt class="col-md-3">Observación</dt><dd class="col-md-3">{{ $asset->observacion ?: '—' }}</dd>

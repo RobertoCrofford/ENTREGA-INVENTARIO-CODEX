@@ -39,7 +39,7 @@ class AuditLogController extends Controller
 
     public function index(Request $request): View
     {
-        Gate::authorize('generar-bitacora');
+        Gate::authorize('ver-bitacora');
 
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],

@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\InventoryMovementController;
+use App\Http\Controllers\PhysicalInventoryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SystemStatusController;
 use App\Http\Controllers\ProductController;
@@ -24,6 +25,9 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 Route::redirect('/', '/dashboard');
+// La administración manual de ubicaciones se retiró. Conservamos esta redirección
+// para que enlaces o pestañas antiguas no muestren un error 404.
+Route::redirect('/locations', '/dashboard');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -81,6 +85,11 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('events/{event}/cancel', [CalendarEventController::class, 'cancel'])->name('events.cancel');
         Route::resource('products', ProductController::class);
         Route::resource('movements', InventoryMovementController::class)->only('index', 'create', 'store');
+        Route::get('physical-inventories', [PhysicalInventoryController::class, 'index'])->name('physical-inventories.index');
+        Route::post('physical-inventories', [PhysicalInventoryController::class, 'store'])->name('physical-inventories.store');
+        Route::get('physical-inventories/{physicalInventory}', [PhysicalInventoryController::class, 'show'])->name('physical-inventories.show');
+        Route::post('physical-inventories/{physicalInventory}/scan', [PhysicalInventoryController::class, 'scan'])->name('physical-inventories.scan');
+        Route::post('physical-inventories/{physicalInventory}/complete', [PhysicalInventoryController::class, 'complete'])->name('physical-inventories.complete');
         Route::get('assets/{asset}/classify', [AssetController::class, 'classify'])->name('assets.classify');
         Route::patch('assets/{asset}/usage', [AssetController::class, 'updateUsage'])->name('assets.update-usage');
         Route::resource('assets', AssetController::class)->except('destroy');

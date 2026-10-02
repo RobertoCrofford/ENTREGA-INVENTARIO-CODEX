@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -100,7 +101,15 @@ class AssetController extends Controller
         Gate::authorize('clasificar-activos');
         abort_if($asset->uso !== 'sin_definir', 422, 'Este activo ya fue clasificado.');
 
-        $data = $request->validate(['uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])]]);
+        $data = $request->validate([
+            'uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])],
+            'ubicacion_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .,_()\/-]+$/u'],
+        ]);
+        $locationName = trim((string) ($data['ubicacion_nombre'] ?? ''));
+        unset($data['ubicacion_nombre']);
+        if ($locationName !== '') {
+            $data['ubicacion_actual_id'] = $this->manualLocationId((int) $asset->sede_id, $locationName);
+        }
         $before = $asset->toArray();
         $asset->update($data);
         $audit->record($request->user(), 'clasificar', 'activo', $asset->id, $before, $asset->fresh()->toArray(), 'Clasificación de uso del activo.');
@@ -172,16 +181,31 @@ class AssetController extends Controller
 
     private function formData(Asset $asset): array
     {
-        return ['asset' => $asset, 'processor' => DB::table('especificaciones_pc')->where('activo_id', $asset->id)->value('procesador'), 'sites' => DB::table('sedes')->where('activo', true)->orderBy('nombre')->get(), 'types' => AssetType::where('activo', true)->orderBy('nombre')->get(), 'statuses' => AssetStatus::where('activo', true)->where('codigo', '!=', 'dado_baja')->orderBy('nombre')->get(), 'locations' => DB::table('ubicaciones')->where('activo', true)->orderBy('nombre')->get()];
+        return ['asset' => $asset, 'processor' => DB::table('especificaciones_pc')->where('activo_id', $asset->id)->value('procesador'), 'sites' => DB::table('sedes')->where('activo', true)->orderBy('nombre')->get(), 'types' => AssetType::where('activo', true)->orderBy('nombre')->get(), 'statuses' => AssetStatus::where('activo', true)->where('codigo', '!=', 'dado_baja')->orderBy('nombre')->get(), 'locations' => DB::table('ubicaciones')->where('activo', true)->where(function ($query) use ($asset) {
+            $query->where('disponible_inventario_fisico', true);
+            if ($asset->ubicacion_actual_id) {
+                $query->orWhere('id', $asset->ubicacion_actual_id);
+            }
+        })->orderBy('nombre')->get()];
     }
 
     private function data(Request $request, bool $includeStatus = true): array
     {
-        $rules = ['sede_id' => ['required', Rule::exists('sedes', 'id')->where('activo', true)], 'tipo_activo_id' => ['required', Rule::exists('tipos_activo', 'id')->where('activo', true)], 'uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])], 'ubicacion_actual_id' => ['nullable', Rule::exists('ubicaciones', 'id')->where('activo', true)], 'activo_fijo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('activos', 'activo_fijo')->ignore($request->route('asset'))], 'numero_serie' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'costo_neto_actual' => ['required', 'numeric', 'min:0'], 'responsable_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL .\'-]+$/u'], 'responsable_email' => ['nullable', 'email', 'max:255'], 'responsable_departamento' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'asignacion_vence_at' => ['nullable', 'date'], 'observacion' => ['nullable', 'string', 'max:2000'], 'procesador' => ['nullable', 'string', 'max:255']];
+        $rules = ['sede_id' => ['required', Rule::exists('sedes', 'id')->where('activo', true)], 'tipo_activo_id' => ['required', Rule::exists('tipos_activo', 'id')->where('activo', true)], 'uso' => ['required', Rule::in(['administrativo', 'alumnos', 'docente', 'comun'])], 'ubicacion_actual_id' => ['nullable', Rule::exists('ubicaciones', 'id')->where('activo', true)], 'ubicacion_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'activo_fijo' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('activos', 'activo_fijo')->ignore($request->route('asset'))], 'numero_serie' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'], 'marca' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'modelo' => ['nullable', 'string', 'max:80', 'regex:/^[\pL\pN .,_()\/-]+$/u'], 'costo_neto_actual' => ['required', 'numeric', 'min:0'], 'responsable_nombre' => ['nullable', 'string', 'max:120', 'regex:/^[\pL .\'-]+$/u'], 'responsable_email' => ['nullable', 'email', 'max:255'], 'responsable_departamento' => ['nullable', 'string', 'max:120', 'regex:/^[\pL\pN .\-]+$/u'], 'asignacion_vence_at' => ['nullable', 'date'], 'observacion' => ['nullable', 'string', 'max:2000'], 'procesador' => ['nullable', 'string', 'max:255']];
         if ($includeStatus) {
             $rules['estado_activo_id'] = ['required', Rule::exists('estados_activo', 'id')->where(fn ($query) => $query->where('activo', true)->where('codigo', '!=', 'dado_baja'))];
         }
         $data = $request->validate($rules);
+        $locationName = trim((string) ($data['ubicacion_nombre'] ?? ''));
+        unset($data['ubicacion_nombre']);
+        // Un activo entregado a una persona deja de pertenecer a una sala o bodega.
+        // El campo de ubicación se muestra precargado al editar, por lo que se ignora
+        // deliberadamente al registrar un responsable.
+        if (! empty($data['responsable_nombre'])) {
+            $data['ubicacion_actual_id'] = null;
+        } elseif ($locationName !== '') {
+            $data['ubicacion_actual_id'] = $this->manualLocationId((int) $data['sede_id'], $locationName);
+        }
         $sameCodeAssetIds = AssetCodeMatch::assetIds($data['activo_fijo']);
         $currentAssetId = $request->route('asset')?->id;
         if (collect($sameCodeAssetIds)->contains(fn (int $assetId) => $assetId !== $currentAssetId)) {
@@ -198,12 +222,6 @@ class AssetController extends Controller
                 'responsable_email' => 'Debes ingresar el nombre y el correo del responsable.',
             ]);
         }
-        if (($data['ubicacion_actual_id'] ?? null) && ($data['responsable_nombre'] ?? null)) {
-            throw ValidationException::withMessages([
-                'ubicacion_actual_id' => 'El activo debe tener una ubicación o un responsable, no ambos.',
-                'responsable_nombre' => 'El activo debe tener una ubicación o un responsable, no ambos.',
-            ]);
-        }
         if (! empty($data['ubicacion_actual_id']) && ! DB::table('ubicaciones')->where('id', $data['ubicacion_actual_id'])->where('sede_id', $data['sede_id'])->exists()) {
             throw ValidationException::withMessages(['ubicacion_actual_id' => 'La ubicación debe pertenecer a la sede seleccionada.']);
         }
@@ -214,6 +232,36 @@ class AssetController extends Controller
         }
 
         return $data;
+    }
+
+    private function manualLocationId(int $siteId, string $name): int
+    {
+        $existingId = DB::table('ubicaciones')->where('sede_id', $siteId)
+            ->whereRaw('LOWER(nombre) = ?', [mb_strtolower($name)])->value('id');
+        if ($existingId) {
+            // Al escribir una ubicación desde el registro de activos, el usuario
+            // confirma que es un espacio físico utilizable para la revisión.
+            DB::table('ubicaciones')->where('id', $existingId)->update([
+                'activo' => true,
+                'disponible_inventario_fisico' => true,
+                'updated_at' => now(),
+            ]);
+
+            return $existingId;
+        }
+
+        $baseCode = Str::upper(Str::limit('UBI-'.Str::slug($name), 36, ''));
+        $code = $baseCode !== 'UBI-' ? $baseCode : 'UBI-UBICACION';
+        $suffix = 2;
+        while (DB::table('ubicaciones')->where('sede_id', $siteId)->where('codigo', $code)->exists()) {
+            $code = Str::limit($baseCode, 36 - strlen((string) $suffix), '').'-'.$suffix++;
+        }
+
+        return DB::table('ubicaciones')->insertGetId([
+            'sede_id' => $siteId, 'tipo' => 'sala', 'codigo' => $code, 'nombre' => $name,
+            'activo' => true, 'disponible_inventario_fisico' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     private function syncPcSpecification(Asset $asset, ?string $processor): void

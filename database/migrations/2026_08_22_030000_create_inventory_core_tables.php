@@ -25,7 +25,6 @@ return new class extends Migration
             $table->string('nombre');
             $table->string('edificio')->nullable();
             $table->string('piso', 30)->nullable();
-            $table->unsignedInteger('capacidad')->nullable();
             $table->boolean('activo')->default(true);
             $table->text('observacion')->nullable();
             $table->timestamps();

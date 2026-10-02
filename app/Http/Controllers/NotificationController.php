@@ -124,7 +124,7 @@ class NotificationController extends Controller
         return match (true) {
             Str::startsWith($path, ['/assets', '/movements', '/imports']) => $user->can('gestionar-inventario'),
             Str::startsWith($path, '/users') => $user->can('administrar-usuarios'),
-            Str::startsWith($path, '/audit-logs') => $user->can('generar-bitacora'),
+            Str::startsWith($path, '/audit-logs') => $user->can('ver-bitacora'),
             Str::startsWith($path, '/notifications') => $user->can('ver-notificaciones'),
             default => $user->activo,
         };

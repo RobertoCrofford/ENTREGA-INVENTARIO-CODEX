@@ -55,18 +55,19 @@
                 @can('solicitar-baja-activo')<a class="sidebar-link @if(request()->routeIs('asset-disposals.*')) active @endif" href="{{ route('asset-disposals.index') }}"><i class="bi bi-clipboard-x"></i>Bajas de activos</a>@endcan
                 @can('gestionar-inventario')
                     <a class="sidebar-link @if(request()->routeIs('movements.*')) active @endif" href="{{ route('movements.index') }}"><i class="bi bi-arrow-left-right"></i>Movimientos</a>
+                    <a class="sidebar-link @if(request()->routeIs('physical-inventories.*')) active @endif" href="{{ route('physical-inventories.index') }}"><i class="bi bi-clipboard-check"></i>Inventario físico</a>
                     <a class="sidebar-link @if(request()->routeIs('imports.*')) active @endif" href="{{ route('imports.assets.index') }}"><i class="bi bi-cloud-arrow-up"></i>Importaciones</a>
                 @endcan
                 @can('consultar-inventario')<a class="sidebar-link @if(request()->routeIs('repairs.*')) active @endif" href="{{ route('repairs.index') }}"><i class="bi bi-tools"></i>Reparaciones</a>
                 <a class="sidebar-link @if(request()->routeIs('warehouses.*')) active @endif" href="{{ route('warehouses.index') }}"><i class="bi bi-building"></i>Bodega</a>@endcan
                 <a class="sidebar-link @if(request()->routeIs('help.*')) active @endif" href="{{ route('help.index') }}"><i class="bi bi-question-circle"></i>Ayuda</a>
             </nav>
-            @canany(['administrar-usuarios', 'generar-bitacora'])
+            @canany(['administrar-usuarios', 'ver-bitacora'])
                 <div class="sidebar-section mt-4">Administración</div>
                 <nav class="sidebar-nav">
                     @can('administrar-usuarios')<a class="sidebar-link @if(request()->routeIs('users.*')) active @endif" href="{{ route('users.index') }}"><i class="bi bi-people"></i>Usuarios</a>@endcan
                     @can('administrar-usuarios')<a class="sidebar-link @if(request()->routeIs('system-status.*')) active @endif" href="{{ route('system-status.index') }}"><i class="bi bi-activity"></i>Estado del sistema</a>@endcan
-                    @can('generar-bitacora')<a class="sidebar-link @if(request()->routeIs('audit-logs.*')) active @endif" href="{{ route('audit-logs.index') }}"><i class="bi bi-journal-text"></i>Bitácora</a>@endcan
+                    @can('ver-bitacora')<a class="sidebar-link @if(request()->routeIs('audit-logs.*')) active @endif" href="{{ route('audit-logs.index') }}"><i class="bi bi-journal-text"></i>Bitácora</a>@endcan
                 </nav>
             @endcanany
             <div class="sidebar-footer"><i class="bi bi-shield-check"></i>Los cambios publicados conservan trazabilidad.</div>
