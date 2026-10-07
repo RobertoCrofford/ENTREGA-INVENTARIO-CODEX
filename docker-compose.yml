@@ -27,6 +27,7 @@ x-laravel-environment: &laravel-environment
   BROADCAST_CONNECTION: "${BROADCAST_CONNECTION:-log}"
   FILESYSTEM_DISK: "${FILESYSTEM_DISK:-local}"
   QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
+  DB_QUEUE_RETRY_AFTER: "${DB_QUEUE_RETRY_AFTER:-960}"
   CACHE_STORE: "${CACHE_STORE:-database}"
   MAIL_MAILER: "${MAIL_MAILER:-smtp}"
   MAIL_SCHEME: "${MAIL_SCHEME:-tls}"
@@ -51,7 +52,7 @@ services:
       - frontend
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/up"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ready"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -74,9 +75,8 @@ services:
     networks:
       - backend
     healthcheck:
-      # La salud del contenedor debe comprobar PHP-FPM, no ejecutar Artisan
-      # (una consulta lenta a la base no debe marcar el proceso como caído).
-      test: ["CMD-SHELL", "kill -0 1"]
+      # Comprueba que PHP-FPM acepte conexiones, no solo que el PID 1 exista.
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1',9000) === false ? 1 : 0);"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -102,7 +102,7 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     environment: *laravel-environment
-    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=900", "--max-time=3600"]
     depends_on:
       migrate:
         condition: service_completed_successfully

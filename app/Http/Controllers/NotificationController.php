@@ -88,7 +88,7 @@ class NotificationController extends Controller
                 return null;
             }
             $originUserId = $notification->origen_usuario_id;
-            if (! $originUserId && preg_match('/El usuario invitado (.+) escaneó el código /', $notification->mensaje, $match)) {
+            if (! $originUserId && preg_match('/El usuario (?:invitado|de apoyo técnico) (.+) escaneó el código /', $notification->mensaje, $match)) {
                 $originUserId = DB::table('users')->join('roles', 'roles.id', '=', 'users.rol_id')->where('roles.codigo', 'invitado')->where('users.name', $match[1])->value('users.id');
             }
             if (! $originUserId) {
@@ -107,7 +107,7 @@ class NotificationController extends Controller
             return $notification;
         });
 
-        return back()->with($notification ? 'success' : 'warning', $notification ? 'Se informó al invitado que su solicitud está siendo atendida.' : 'Esta solicitud ya fue atendida o no está disponible.');
+        return back()->with($notification ? 'success' : 'warning', $notification ? 'Se informó al usuario de apoyo técnico que su solicitud está siendo atendida.' : 'Esta solicitud ya fue atendida o no está disponible.');
     }
 
     private function canOpenTarget(Request $request, string $target): bool
@@ -122,7 +122,8 @@ class NotificationController extends Controller
         $user = $request->user();
 
         return match (true) {
-            Str::startsWith($path, ['/assets', '/movements', '/imports']) => $user->can('gestionar-inventario'),
+            Str::startsWith($path, '/imports') => $user->can('importar-activos'),
+            Str::startsWith($path, ['/assets', '/movements']) => $user->can('gestionar-inventario'),
             Str::startsWith($path, '/users') => $user->can('administrar-usuarios'),
             Str::startsWith($path, '/audit-logs') => $user->can('ver-bitacora'),
             Str::startsWith($path, '/notifications') => $user->can('ver-notificaciones'),

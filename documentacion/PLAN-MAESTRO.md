@@ -98,12 +98,14 @@ No se implementará un sistema híbrido complejo anticipadamente. La migración 
 
 ## 6. Roles y permisos
 
-### 6.1 Invitado
+### 6.1 Apoyo técnico (código histórico `invitado`)
 
-- Solo lectura.
 - Consultar productos, stock, activos, salas, costos y reportes autorizados.
-- Exportar reportes permitidos.
-- No puede crear, modificar, aprobar ni publicar operaciones.
+- Crear y modificar productos y activos para apoyar el trabajo en terreno.
+- Registrar movimientos, reparaciones e inventarios físicos.
+- Clasificar activos y solicitar bajas.
+- No puede importar datos masivamente, aprobar bajas, gestionar usuarios, ver la bitácora administrativa ni operar el estado del sistema.
+- No puede gestionar ni cancelar eventos del calendario.
 
 ### 6.2 Técnico
 
@@ -356,6 +358,14 @@ Pendiente de baja es un estado de la solicitud, no del activo.
 
 No se utilizará Traslado como estado porque el traslado se registra como evento. En tránsito se agregará solo si el proceso físico futuro lo requiere.
 
+### 13.1 Inventario físico
+
+- Al iniciar una revisión se guarda una instantánea de los activos esperados en la ubicación.
+- Traslados, cambios de código o cambios de estado posteriores no alteran retroactivamente esa lista esperada.
+- Cada lectura registra si el activo sigue en la ubicación revisada, está en otra ubicación o no tiene ubicación.
+- Una revisión solo finaliza cuando todos los activos de su instantánea fueron escaneados; los demás quedan como pendientes.
+- Las ubicaciones institucionales base quedan habilitadas para inventario físico desde la carga inicial.
+
 ## 14. Reparación
 
 No se construirá un módulo de mantenimiento avanzado.
@@ -465,10 +475,12 @@ Los productos dañados pasan por solicitud de baja.
 
 ## 17. Dashboard y alertas
 
-### Invitado
+### Apoyo técnico
 
-- Stock y activos.
-- Costos.
+- Stock, activos y costos.
+- Operaciones recientes e inventarios físicos.
+- Reparaciones.
+- Solicitudes propias de baja.
 - Reportes autorizados.
 
 ### Técnico
@@ -683,7 +695,7 @@ Decisiones cerradas por simplicidad:
 - Cambio de rol durante una sesión.
 - Intento de desactivar al último Superadministrador.
 - Sesión expirada durante un borrador.
-- Invitado invocando directamente una ruta de escritura.
+- Apoyo técnico intentando importar, aprobar o acceder a rutas administrativas.
 
 ### Operación
 

@@ -29,7 +29,9 @@ class SessionLimitService
                 ->orderBy('id')
                 ->pluck('id');
 
-            $sessionIdsToClose = $olderSessionIds->slice(self::MAX_ACTIVE_SESSIONS - 1);
+            $sessionIdsToClose = $olderSessionIds->take(
+                max(0, $olderSessionIds->count() - (self::MAX_ACTIVE_SESSIONS - 1))
+            );
 
             if ($sessionIdsToClose->isNotEmpty()) {
                 DB::table('sessions')->whereIn('id', $sessionIdsToClose)->delete();

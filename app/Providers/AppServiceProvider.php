@@ -33,18 +33,19 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::before(fn (User $user, string $ability) => $ability !== 'solicitar-baja-activo' && $user->tieneRol(Role::SUPERADMIN) ? true : null);
 
-        Gate::define('consultar-inventario', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
+        Gate::define('consultar-inventario', fn (User $user) => $user->activo && $user->tieneRol(Role::APOYO_TECNICO, Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
         Gate::define('escanear-inventario', fn (User $user) => $user->activo);
         Gate::define('ver-eventos', fn (User $user) => $user->activo);
         Gate::define('gestionar-eventos', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
-        Gate::define('clasificar-activos', fn (User $user) => $user->activo && ! $user->tieneRol(Role::INVITADO));
-        Gate::define('ver-notificaciones', fn (User $user) => $user->tieneRol(Role::INVITADO, Role::TECNICO, Role::DIRECTOR_TECNICO));
+        Gate::define('clasificar-activos', fn (User $user) => $user->activo && $user->tieneRol(Role::APOYO_TECNICO, Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
+        Gate::define('ver-notificaciones', fn (User $user) => $user->tieneRol(Role::APOYO_TECNICO, Role::TECNICO, Role::DIRECTOR_TECNICO));
         Gate::define('generar-bitacora', fn (User $user) => $user->activo && $user->tieneRol(Role::SUPERADMIN));
         Gate::define('ver-bitacora', fn (User $user) => $user->activo && ($user->puede_ver_bitacora || $user->tieneRol(Role::DIRECTOR_TECNICO, Role::SUPERADMIN)));
         Gate::define('administrar-usuarios', fn (User $user) => $user->tieneRol(Role::SUPERADMIN));
-        Gate::define('gestionar-inventario', fn (User $user) => $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
-        Gate::define('realizar-inventario-fisico', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
-        Gate::define('solicitar-baja-activo', fn (User $user) => $user->activo && $user->tieneRol(Role::INVITADO, Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
+        Gate::define('gestionar-inventario', fn (User $user) => $user->activo && $user->tieneRol(Role::APOYO_TECNICO, Role::TECNICO, Role::DIRECTOR_TECNICO));
+        Gate::define('importar-activos', fn (User $user) => $user->activo && $user->tieneRol(Role::TECNICO, Role::DIRECTOR_TECNICO));
+        Gate::define('realizar-inventario-fisico', fn (User $user) => $user->activo && $user->tieneRol(Role::APOYO_TECNICO, Role::TECNICO, Role::DIRECTOR_TECNICO));
+        Gate::define('solicitar-baja-activo', fn (User $user) => $user->activo && $user->tieneRol(Role::APOYO_TECNICO, Role::TECNICO, Role::DIRECTOR_TECNICO, Role::SUPERADMIN));
         Gate::define('autorizar-operaciones', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
         Gate::define('desactivar-productos', fn (User $user) => $user->tieneRol(Role::DIRECTOR_TECNICO));
 

@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Repair;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\SessionLimitService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -99,6 +100,53 @@ class SecurityRegressionTest extends TestCase
         $this->assertDatabaseMissing('users', ['username' => 'administrador_recuperado']);
     }
 
+    public function test_five_failed_logins_temporarily_lock_the_account(): void
+    {
+        $user = $this->user(Role::TECNICO);
+
+        foreach (range(1, 5) as $attempt) {
+            $this->post(route('login.store'), [
+                'username' => $user->username,
+                'password' => 'incorrecta-'.$attempt,
+            ])->assertSessionHasErrors('username');
+        }
+
+        $user->refresh();
+        $this->assertSame(5, $user->intentos_fallidos);
+        $this->assertTrue($user->estaBloqueado());
+    }
+
+    public function test_user_with_a_temporary_password_must_change_it_before_entering(): void
+    {
+        $user = $this->user(Role::TECNICO);
+        $user->update(['debe_cambiar_password' => true]);
+
+        $this->post(route('login.store'), [
+            'username' => $user->username,
+            'password' => 'Password1234',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->get(route('dashboard'))->assertRedirect(route('password.edit'));
+        $this->get(route('password.edit'))->assertOk();
+    }
+
+    public function test_session_limit_keeps_only_the_current_and_latest_session(): void
+    {
+        $user = $this->user(Role::TECNICO);
+        $now = now()->timestamp;
+        DB::table('sessions')->insert([
+            ['id' => 'old-session', 'user_id' => $user->id, 'ip_address' => null, 'user_agent' => null, 'payload' => '', 'last_activity' => $now - 30],
+            ['id' => 'latest-session', 'user_id' => $user->id, 'ip_address' => null, 'user_agent' => null, 'payload' => '', 'last_activity' => $now - 10],
+            ['id' => 'current-session', 'user_id' => $user->id, 'ip_address' => null, 'user_agent' => null, 'payload' => '', 'last_activity' => $now],
+        ]);
+
+        app(SessionLimitService::class)->enforce($user->id, 'current-session');
+
+        $this->assertDatabaseMissing('sessions', ['id' => 'old-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'latest-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'current-session']);
+    }
+
     public function test_director_cannot_administer_users(): void
     {
         $this->actingAs($this->user(Role::DIRECTOR_TECNICO))
@@ -147,44 +195,125 @@ class SecurityRegressionTest extends TestCase
             ->assertSee('#'.$asset->id);
     }
 
-    public function test_an_invited_user_can_scan_and_request_disposals_but_cannot_consult_or_export_inventory(): void
+    public function test_technical_support_can_help_with_inventory_but_cannot_import_or_administer(): void
     {
-        $guest = $this->user(Role::INVITADO);
+        $support = $this->user(Role::APOYO_TECNICO);
 
-        $this->actingAs($guest)->get(route('scan.index'))->assertOk();
-        $this->actingAs($guest)->get(route('products.index'))->assertForbidden();
-        $this->actingAs($guest)->get(route('products.create'))->assertForbidden();
-        $this->actingAs($guest)->get(route('imports.assets.export'))->assertForbidden();
-        $this->actingAs($guest)->get(route('audit-logs.index'))->assertForbidden();
+        $this->actingAs($support)->get(route('scan.index'))->assertOk();
+        $this->actingAs($support)->get(route('products.create'))->assertOk();
+        $this->actingAs($support)->get(route('assets.create'))->assertOk();
+        $this->actingAs($support)->get(route('movements.create'))->assertOk();
+        $this->actingAs($support)->get(route('physical-inventories.index'))->assertOk();
+        $this->actingAs($support)->get(route('asset-disposals.index'))->assertOk();
+        $this->actingAs($support)->get(route('imports.assets.index'))->assertForbidden();
+        $this->actingAs($support)->get(route('imports.assets.export'))->assertForbidden();
+        $this->actingAs($support)->get(route('audit-logs.index'))->assertForbidden();
+        $this->actingAs($support)->get(route('users.index'))->assertForbidden();
+        $this->actingAs($support)->get(route('system-status.index'))->assertForbidden();
+        $this->actingAs($support)->post(route('events.store'), [
+            'titulo' => 'Evento no autorizado',
+            'fecha_inicio' => now()->addDay()->toDateString(),
+        ])->assertForbidden();
     }
 
-    public function test_invited_user_only_sees_their_own_disposal_requests(): void
+    public function test_technical_support_can_request_but_cannot_approve_a_disposal(): void
     {
-        $guest = $this->user(Role::INVITADO);
+        $support = $this->user(Role::APOYO_TECNICO);
+        $asset = $this->asset($support);
+
+        $this->actingAs($support)->post(route('asset-disposals.store'), [
+            'activo_id' => $asset->id,
+            'motivo' => 'El equipo presenta un daño que impide su uso seguro.',
+            'diagnostico' => 'La revisión técnica indica que la reparación no es viable.',
+        ])->assertRedirect();
+
+        $disposalId = DB::table('solicitudes_baja_activo')->where('activo_id', $asset->id)->value('id');
+        $this->actingAs($support)->post(route('asset-disposals.approve', $disposalId), [
+            'comentario' => 'Intento de aprobación sin privilegios.',
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('solicitudes_baja_activo', ['id' => $disposalId, 'estado' => 'pendiente']);
+    }
+
+    public function test_technical_support_dashboard_explains_its_operational_scope(): void
+    {
+        $support = $this->user(Role::APOYO_TECNICO);
+        $this->asset($support);
+
+        $this->actingAs($support)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Perfil de Apoyo técnico')
+            ->assertSee('Activos registrados')
+            ->assertSee('Movimientos recientes')
+            ->assertSee('Bajas pendientes');
+    }
+
+    public function test_readiness_endpoint_checks_the_database(): void
+    {
+        $this->get(route('health.ready'))
+            ->assertOk()
+            ->assertExactJson(['status' => 'ok']);
+    }
+
+    public function test_technician_can_complete_a_physical_inventory(): void
+    {
         $technician = $this->user(Role::TECNICO);
-        $ownAsset = $this->asset($guest);
-        $otherAsset = $this->asset($technician);
-        $now = now();
-        DB::table('solicitudes_baja_activo')->insert([
-            ['activo_id' => $ownAsset->id, 'estado' => 'pendiente', 'motivo' => 'Solicitud del invitado', 'diagnostico' => 'Diagnóstico propio', 'solicitado_por' => $guest->id, 'solicitado_at' => $now, 'created_at' => $now, 'updated_at' => $now],
-            ['activo_id' => $otherAsset->id, 'estado' => 'pendiente', 'motivo' => 'Solicitud de otro usuario', 'diagnostico' => 'Diagnóstico ajeno', 'solicitado_por' => $technician->id, 'solicitado_at' => $now, 'created_at' => $now, 'updated_at' => $now],
-        ]);
+        $asset = $this->asset($technician);
+        $locationId = $asset->ubicacion_actual_id;
 
-        $this->actingAs($guest)->get(route('asset-disposals.index'))
-            ->assertOk()
-            ->assertSee($ownAsset->activo_fijo)
-            ->assertDontSee($otherAsset->activo_fijo);
+        $this->actingAs($technician)->post(route('physical-inventories.store'), [
+            'ubicacion_id' => $locationId,
+        ])->assertRedirect();
+
+        $inventoryId = DB::table('inventarios_fisicos')->where('ubicacion_id', $locationId)->value('id');
+        $this->actingAs($technician)->post(route('physical-inventories.scan', $inventoryId), [
+            'codigo' => $asset->activo_fijo,
+        ])->assertRedirect(route('physical-inventories.show', $inventoryId));
+        $this->actingAs($technician)->post(route('physical-inventories.complete', $inventoryId))
+            ->assertRedirect(route('physical-inventories.show', $inventoryId));
+
+        $this->assertDatabaseHas('inventarios_fisicos_detalle', [
+            'inventario_fisico_id' => $inventoryId,
+            'activo_id' => $asset->id,
+            'resultado' => 'encontrado',
+        ]);
+        $this->assertDatabaseHas('inventarios_fisicos', ['id' => $inventoryId, 'estado' => 'finalizado']);
     }
 
-    public function test_invited_dashboard_does_not_expose_operational_inventory_summary(): void
+    public function test_technical_support_can_access_physical_inventory(): void
     {
-        $guest = $this->user(Role::INVITADO);
-        $this->asset($guest);
+        $this->actingAs($this->user(Role::APOYO_TECNICO))
+            ->get(route('physical-inventories.index'))
+            ->assertOk();
+    }
 
-        $this->actingAs($guest)->get(route('dashboard'))
-            ->assertOk()
-            ->assertSee('Acceso de invitado')
-            ->assertDontSee('Movimientos recientes');
+    public function test_physical_inventory_keeps_its_expected_asset_snapshot_when_an_asset_moves(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+        $originalLocationId = $asset->ubicacion_actual_id;
+        $otherLocationId = DB::table('ubicaciones')->where('id', '!=', $originalLocationId)->where('disponible_inventario_fisico', true)->value('id');
+
+        $this->actingAs($technician)->post(route('physical-inventories.store'), [
+            'ubicacion_id' => $originalLocationId,
+        ])->assertRedirect();
+        $inventoryId = DB::table('inventarios_fisicos')->where('ubicacion_id', $originalLocationId)->value('id');
+
+        $asset->update(['ubicacion_actual_id' => $otherLocationId]);
+        $this->actingAs($technician)->post(route('physical-inventories.complete', $inventoryId))->assertRedirect();
+        $this->assertDatabaseHas('inventarios_fisicos', ['id' => $inventoryId, 'estado' => 'pendiente']);
+        $this->assertDatabaseHas('inventarios_fisicos_esperados', ['inventario_fisico_id' => $inventoryId, 'activo_id' => $asset->id]);
+
+        $this->actingAs($technician)->post(route('physical-inventories.scan', $inventoryId), [
+            'codigo' => $asset->activo_fijo,
+        ])->assertRedirect(route('physical-inventories.show', $inventoryId));
+
+        $this->assertDatabaseHas('inventarios_fisicos_detalle', [
+            'inventario_fisico_id' => $inventoryId,
+            'activo_id' => $asset->id,
+            'resultado' => 'ubicacion_distinta',
+        ]);
+        $this->assertDatabaseHas('inventarios_fisicos', ['id' => $inventoryId, 'estado' => 'finalizado']);
     }
 
     public function test_notification_summary_refreshes_the_user_notifications(): void
@@ -325,9 +454,9 @@ class SecurityRegressionTest extends TestCase
 
     public function test_an_unregistered_scan_does_not_create_notifications(): void
     {
-        $guest = $this->user(Role::INVITADO);
+        $support = $this->user(Role::APOYO_TECNICO);
 
-        $this->actingAs($guest)->post(route('scan.search'), ['codigo' => 'CODIGO-SIN-REGISTRO'])
+        $this->actingAs($support)->post(route('scan.search'), ['codigo' => 'CODIGO-SIN-REGISTRO'])
             ->assertOk()
             ->assertSee('Código no registrado');
 
@@ -360,24 +489,24 @@ class SecurityRegressionTest extends TestCase
         $this->assertSame('operativo', $asset->fresh()->status->codigo);
     }
 
-    public function test_invited_user_can_request_a_disposal_and_notifies_the_director_and_superadministrator(): void
+    public function test_technical_support_can_request_a_disposal_and_notifies_the_director_and_superadministrator(): void
     {
-        $guest = $this->user(Role::INVITADO);
+        $support = $this->user(Role::APOYO_TECNICO);
         $director = $this->user(Role::DIRECTOR_TECNICO);
         $superadministrator = $this->user(Role::SUPERADMIN);
-        $asset = $this->asset($guest);
+        $asset = $this->asset($support);
 
-        $this->actingAs($guest)->post(route('asset-disposals.store'), [
+        $this->actingAs($support)->post(route('asset-disposals.store'), [
             'activo_id' => $asset->id,
             'motivo' => 'El equipo presenta un daño físico que impide su uso seguro.',
             'diagnostico' => 'Se confirmó que la reparación no es viable por el daño de sus componentes.',
         ])->assertRedirect();
 
         $requestId = DB::table('solicitudes_baja_activo')->where('activo_id', $asset->id)->value('id');
-        $this->assertDatabaseHas('solicitudes_baja_activo', ['id' => $requestId, 'solicitado_por' => $guest->id, 'estado' => 'pendiente']);
+        $this->assertDatabaseHas('solicitudes_baja_activo', ['id' => $requestId, 'solicitado_por' => $support->id, 'estado' => 'pendiente']);
         $this->assertDatabaseHas('notificaciones', ['usuario_id' => $director->id, 'titulo' => 'Solicitud de baja pendiente']);
         $this->assertDatabaseHas('notificaciones', ['usuario_id' => $superadministrator->id, 'titulo' => 'Solicitud de baja pendiente']);
-        $this->assertDatabaseMissing('notificaciones', ['usuario_id' => $guest->id, 'titulo' => 'Solicitud de baja pendiente']);
+        $this->assertDatabaseMissing('notificaciones', ['usuario_id' => $support->id, 'titulo' => 'Solicitud de baja pendiente']);
     }
 
     public function test_asset_disposal_requires_and_records_director_approval(): void
@@ -482,13 +611,13 @@ class SecurityRegressionTest extends TestCase
         Storage::disk('local')->assertMissing($oldPath);
     }
 
-    public function test_asset_import_notifies_operational_roles_only_after_confirmation(): void
+    public function test_asset_import_notifies_only_roles_authorized_to_open_imports(): void
     {
         Storage::fake('local');
         Queue::fake();
         $technician = $this->user(Role::TECNICO);
         $superadministrator = $this->user(Role::SUPERADMIN);
-        $guest = $this->user(Role::INVITADO);
+        $support = $this->user(Role::APOYO_TECNICO);
         $csv = implode("\n", [
             'activo_fijo,sede_codigo,tipo_codigo,estado_codigo,uso,ubicacion_codigo,numero_serie,marca,modelo,costo_neto,responsable_nombre,responsable_email,responsable_departamento,observacion',
             'AF-IMPORT-001,MAIPU,notebook,operativo,administrativo,BOD-MAIPU,SN-IMPORT-001,Lenovo,ThinkPad,450000,,,,Carga de prueba',
@@ -517,7 +646,7 @@ class SecurityRegressionTest extends TestCase
             'titulo' => 'Importación de activos completada',
         ]);
         $this->assertDatabaseMissing('notificaciones', [
-            'usuario_id' => $guest->id,
+            'usuario_id' => $support->id,
             'titulo' => 'Importación de activos completada',
         ]);
     }
