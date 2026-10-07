@@ -14,7 +14,7 @@
 - [ ] Crear una sede y una bodega; registrar una categoría, producto y entrada.
 - [ ] Intentar dos salidas que superen el stock y confirmar que no se publica stock negativo.
 - [ ] Ejecutar traslado entre bodegas distintas y comprobar ambos saldos e historial.
-- [ ] Probar cuenta Invitado contra rutas de escritura.
+- [ ] Probar que Apoyo técnico puede operar inventario y que no puede importar, aprobar bajas ni acceder a administración.
 - [ ] Desactivar una cuenta en sesión y verificar cierre de sesión.
 - [ ] Registrar activo, moverlo a reparación y completarla con resultado.
 - [ ] Solicitar y aprobar una baja por valor menor, igual y mayor a $200.000; comprobar PDF únicamente para el último caso.

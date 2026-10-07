@@ -25,6 +25,15 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 Route::redirect('/', '/dashboard');
+Route::get('/ready', function () {
+    try {
+        DB::select('select 1');
+
+        return response()->json(['status' => 'ok']);
+    } catch (\Throwable) {
+        return response()->json(['status' => 'unavailable'], 503);
+    }
+})->name('health.ready');
 // La administración manual de ubicaciones se retiró. Conservamos esta redirección
 // para que enlaces o pestañas antiguas no muestren un error 404.
 Route::redirect('/locations', '/dashboard');
@@ -49,17 +58,17 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::middleware('password.changed')->group(function () {
         Route::get('/dashboard', function () {
-            $isInvited = auth()->user()->tieneRol(\App\Models\Role::INVITADO);
+            $isTechnicalSupport = auth()->user()->tieneRol(\App\Models\Role::APOYO_TECNICO);
 
             return view('dashboard', [
-                'isInvited' => $isInvited,
-                'stockAgotado' => ! $isInvited && Schema::hasTable('existencias') ? DB::table('existencias')->where('activo', true)->where('cantidad', 0)->count() : 0,
-                'totalActivos' => ! $isInvited && Schema::hasTable('activos') ? DB::table('activos')->count() : 0,
-                'activosOperativos' => ! $isInvited && Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'operativo')->count() : 0,
-                'activosSinClasificar' => ! $isInvited && Schema::hasTable('activos') ? DB::table('activos')->where('uso', 'sin_definir')->count() : 0,
-                'activosReparacion' => ! $isInvited && Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'en_reparacion')->count() : 0,
-                'solicitudesPendientes' => ! $isInvited && Schema::hasTable('solicitudes_baja_activo') ? DB::table('solicitudes_baja_activo')->where('estado', 'pendiente')->count() : 0,
-                'movimientosRecientes' => ! $isInvited && Schema::hasTable('movimientos_inventario') ? DB::table('movimientos_inventario')->where('estado', 'publicado')->orderByDesc('publicado_at')->limit(5)->get() : collect(),
+                'isTechnicalSupport' => $isTechnicalSupport,
+                'stockAgotado' => Schema::hasTable('existencias') ? DB::table('existencias')->where('activo', true)->where('cantidad', 0)->count() : 0,
+                'totalActivos' => Schema::hasTable('activos') ? DB::table('activos')->count() : 0,
+                'activosOperativos' => Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'operativo')->count() : 0,
+                'activosSinClasificar' => Schema::hasTable('activos') ? DB::table('activos')->where('uso', 'sin_definir')->count() : 0,
+                'activosReparacion' => Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'en_reparacion')->count() : 0,
+                'solicitudesPendientes' => Schema::hasTable('solicitudes_baja_activo') ? DB::table('solicitudes_baja_activo')->where('estado', 'pendiente')->when($isTechnicalSupport, fn ($query) => $query->where('solicitado_por', auth()->id()))->count() : 0,
+                'movimientosRecientes' => Schema::hasTable('movimientos_inventario') ? DB::table('movimientos_inventario')->where('estado', 'publicado')->orderByDesc('publicado_at')->limit(5)->get() : collect(),
             ]);
         })->name('dashboard');
         Route::resource('users', UserController::class)->except('show', 'destroy');

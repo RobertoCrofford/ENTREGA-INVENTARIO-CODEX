@@ -1,7 +1,7 @@
 Implementa autenticación local, roles y shell institucional.
 
 Alcance funcional:
-- Roles fijos: Invitado, Técnico, Director técnico y Superadministrador.
+- Roles fijos: Apoyo técnico (código histórico `invitado`), Técnico, Director técnico y Superadministrador.
 - Usuarios locales sin autorregistro.
 - Alta por Superadministrador, cambio obligatorio de contraseña inicial, activación/inactivación, bloqueo progresivo y sesión de 30 minutos.
 - Proteger al último Superadministrador activo.
@@ -15,8 +15,7 @@ Seguridad:
 
 Criterios de aceptación:
 - Pruebas de acceso, bloqueo, cambio inicial, expiración, desactivación y autorización por rol.
-- Invitado no puede ejecutar ninguna ruta de escritura.
+- Apoyo técnico puede operar inventario, movimientos, reparaciones e inventarios físicos, pero no importar, aprobar ni administrar.
 - Interfaz responsive y operable por teclado.
 - No implementar Entra ID.
 - No avanzar a catálogos de negocio.
-

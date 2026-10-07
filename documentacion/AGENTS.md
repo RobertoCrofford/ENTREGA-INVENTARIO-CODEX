@@ -29,7 +29,7 @@
 - Un Técnico puede solicitar una baja; un Director técnico puede aprobarla.
 - El Superadministrador puede aprobar bajas, incluida excepcionalmente una solicitud propia, con justificación reforzada y auditoría.
 - Una baja aprobada de un activo con costo neto superior a `$200.000 CLP` genera un acta PDF.
-- Todos los roles pueden ver costos. Invitado es estrictamente de solo lectura.
+- Todos los roles pueden ver costos. El código histórico `invitado` representa al rol Apoyo técnico: puede colaborar en la operación, pero no importar, aprobar ni administrar.
 
 ## Calidad
 

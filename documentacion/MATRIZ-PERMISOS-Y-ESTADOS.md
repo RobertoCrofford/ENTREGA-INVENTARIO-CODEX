@@ -2,27 +2,28 @@
 
 ## 1. Permisos por rol
 
-| Acción | Invitado | Técnico | Director técnico | Superadministrador |
+| Acción | Apoyo técnico | Técnico | Director técnico | Superadministrador |
 |---|:---:|:---:|:---:|:---:|
 | Iniciar sesión y consultar dashboard | Sí | Sí | Sí | Sí |
 | Ver productos, stock y costos | Sí | Sí | Sí | Sí |
 | Exportar reportes permitidos | Sí | Sí | Sí | Sí |
-| Crear producto | No | Sí | Sí | Sí |
-| Editar producto y costo | No | Sí | Sí | Sí |
+| Crear producto | Sí | Sí | Sí | Sí |
+| Editar producto y costo | Sí | Sí | Sí | Sí |
 | Inactivar producto | No | No | Sí | Sí |
-| Crear entrada, salida, devolución o traslado | No | Sí | Sí | Sí |
-| Publicar movimiento propio válido | No | Sí | Sí | Sí |
+| Crear entrada, salida, devolución o traslado | Sí | Sí | Sí | Sí |
+| Publicar movimiento propio válido | Sí | Sí | Sí | Sí |
 | Realizar ajuste de stock | No | No | Sí | Sí |
 | Revertir movimiento | No | No | Sí | Sí |
-| Solicitar baja de stock | No | Sí | Sí | Sí |
+| Solicitar baja de stock | Sí | Sí | Sí | Sí |
 | Aprobar baja de stock ajena | No | No | Sí | Sí |
 | Autoaprobar baja de stock | No | No | No | Sí, excepcional |
 | Ver activos y especificaciones | Sí | Sí | Sí | Sí |
-| Crear o editar activo | No | Sí | Sí | Sí |
-| Asignar o trasladar activo | No | Sí | Sí | Sí |
-| Gestionar reparación | No | Sí | Sí | Sí |
-| Gestionar componentes | No | Sí | Sí | Sí |
-| Solicitar baja de activo | No | Sí | Sí | Sí |
+| Crear o editar activo | Sí | Sí | Sí | Sí |
+| Asignar o trasladar activo | Sí | Sí | Sí | Sí |
+| Gestionar reparación | Sí | Sí | Sí | Sí |
+| Gestionar componentes | Sí | Sí | Sí | Sí |
+| Realizar inventario físico | Sí | Sí | Sí | Sí |
+| Solicitar baja de activo | Sí | Sí | Sí | Sí |
 | Aprobar baja de activo ajena | No | No | Sí | Sí |
 | Autoaprobar baja de activo | No | No | No | Sí, excepcional |
 | Gestionar sedes y ubicaciones | No | No | Sí | Sí |
@@ -133,4 +134,3 @@ La aplicación debe mostrar una confirmación de alto riesgo y exigir una justif
 - Notificación al Director técnico activo.
 
 No se agregará un segundo nivel de aprobación.
-

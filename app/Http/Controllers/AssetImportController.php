@@ -32,7 +32,7 @@ class AssetImportController extends Controller
 
     public function index(): View
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
 
         $imports = DB::table('importaciones')
             ->join('users', 'users.id', '=', 'importaciones.ejecutado_por')
@@ -46,7 +46,7 @@ class AssetImportController extends Controller
 
     public function template()
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
 
         $stream = fopen('php://temp', 'r+');
         fputcsv($stream, self::HEADERS);
@@ -60,7 +60,7 @@ class AssetImportController extends Controller
 
     public function export()
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
         abort_unless(class_exists(ZipArchive::class), 422, 'El servidor no tiene habilitada la generación de archivos Excel.');
         $path = tempnam(sys_get_temp_dir(), 'activos-');
         $zip = new ZipArchive;
@@ -97,7 +97,7 @@ class AssetImportController extends Controller
 
     public function preview(Request $request): RedirectResponse
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
         $request->validate(['archivo' => ['required', 'file', 'max:20480', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']]);
         $file = $request->file('archivo');
         $extension = strtolower($file->getClientOriginalExtension());
@@ -131,7 +131,7 @@ class AssetImportController extends Controller
 
     public function show(int $import): View
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
         $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->firstOrFail();
         $errors = DB::table('errores_importacion')->where('importacion_id', $import->id)->orderBy('fila')->get();
 
@@ -140,7 +140,7 @@ class AssetImportController extends Controller
 
     public function original(int $import)
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
         $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->firstOrFail();
         $path = 'importaciones/'.$import->archivo_sha256.'.'.$this->extension($import->archivo_nombre);
         abort_unless(Storage::disk('local')->exists($path), 404, 'No se encontró el archivo original de la importación.');
@@ -150,7 +150,7 @@ class AssetImportController extends Controller
 
     public function confirm(Request $request, int $import, AuditService $audit): RedirectResponse
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
         $import = DB::transaction(function () use ($import) {
             $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->lockForUpdate()->firstOrFail();
             abort_unless($import->estado === 'lista', 422, 'Esta importación ya fue procesada.');
@@ -236,7 +236,7 @@ class AssetImportController extends Controller
 
     public function rejected(int $import)
     {
-        Gate::authorize('gestionar-inventario');
+        Gate::authorize('importar-activos');
         $import = DB::table('importaciones')->where('id', $import)->where('tipo', 'activos')->firstOrFail();
         $errors = DB::table('errores_importacion')->where('importacion_id', $import->id)->orderBy('fila')->get();
         $stream = fopen('php://temp', 'r+');

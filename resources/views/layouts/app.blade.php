@@ -56,8 +56,8 @@
                 @can('gestionar-inventario')
                     <a class="sidebar-link @if(request()->routeIs('movements.*')) active @endif" href="{{ route('movements.index') }}"><i class="bi bi-arrow-left-right"></i>Movimientos</a>
                     <a class="sidebar-link @if(request()->routeIs('physical-inventories.*')) active @endif" href="{{ route('physical-inventories.index') }}"><i class="bi bi-clipboard-check"></i>Inventario físico</a>
-                    <a class="sidebar-link @if(request()->routeIs('imports.*')) active @endif" href="{{ route('imports.assets.index') }}"><i class="bi bi-cloud-arrow-up"></i>Importaciones</a>
                 @endcan
+                @can('importar-activos')<a class="sidebar-link @if(request()->routeIs('imports.*')) active @endif" href="{{ route('imports.assets.index') }}"><i class="bi bi-cloud-arrow-up"></i>Importaciones</a>@endcan
                 @can('consultar-inventario')<a class="sidebar-link @if(request()->routeIs('repairs.*')) active @endif" href="{{ route('repairs.index') }}"><i class="bi bi-tools"></i>Reparaciones</a>
                 <a class="sidebar-link @if(request()->routeIs('warehouses.*')) active @endif" href="{{ route('warehouses.index') }}"><i class="bi bi-building"></i>Bodega</a>@endcan
                 <a class="sidebar-link @if(request()->routeIs('help.*')) active @endif" href="{{ route('help.index') }}"><i class="bi bi-question-circle"></i>Ayuda</a>

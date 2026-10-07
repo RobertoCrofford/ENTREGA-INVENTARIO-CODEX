@@ -30,7 +30,7 @@ Criterios:
 - La sesión expira tras 30 minutos de inactividad.
 - Un usuario desactivado no puede crear una nueva sesión.
 - El primer acceso exige cambio de contraseña.
-- Invitado nunca puede ejecutar rutas de escritura.
+- Apoyo técnico puede ejecutar operaciones de inventario, pero no importar, aprobar bajas ni acceder a administración.
 
 ## 3. Escaneo global
 
@@ -52,11 +52,11 @@ Criterios:
 - Dos `ENTER` inmediatos no duplican una acción.
 - El lector no captura cuando el usuario escribe en otro campo.
 - Un desconocido no se crea automáticamente.
-- Invitado solo puede consultar.
+- Apoyo técnico puede continuar desde el escaneo hacia las acciones operativas autorizadas.
 
 ## 4. Crear producto
 
-1. Técnico abre Productos y selecciona Nuevo.
+1. Apoyo técnico o Técnico abre Productos y selecciona Nuevo.
 2. El sistema genera un código interno.
 3. Técnico ingresa número de parte, nombre, categoría, costo neto, marca opcional y código de barras opcional.
 4. El sistema valida duplicados.
@@ -150,7 +150,7 @@ Criterios:
 
 ```mermaid
 flowchart TD
-    A[Técnico crea solicitud] --> B[Agrega productos dañados y cantidades]
+    A[Apoyo técnico o Técnico crea solicitud] --> B[Agrega productos dañados y cantidades]
     B --> C[Envía solicitud]
     C --> D{Director o Superadmin resuelve}
     D -- Rechaza --> E[Comentario obligatorio y notificación]
@@ -202,7 +202,7 @@ Criterios:
 
 ## 13. Reparación
 
-1. Técnico abre activo y selecciona Enviar a reparación.
+1. Apoyo técnico o Técnico abre activo y selecciona Enviar a reparación.
 2. Indica motivo, responsable y taller.
 3. El activo cambia a En reparación.
 4. Al finalizar se elige Operativo o No operativo y se documenta resultado.
@@ -244,7 +244,7 @@ flowchart TD
 
 Criterios:
 
-- Técnico puede solicitar, no aprobar.
+- Apoyo técnico o Técnico puede solicitar, pero no aprobar.
 - Director no aprueba una solicitud propia.
 - Superadministrador puede autoaprobar con justificación reforzada.
 - Costo exactamente $200.000 no genera acta.
@@ -291,4 +291,3 @@ Criterios:
 - PDF fallido: marcar pendiente de regeneración y alertar.
 - Deadlock MySQL: reintento acotado y seguro.
 - Disco lleno o base no disponible: detener escrituras y mostrar estado operativo.
-

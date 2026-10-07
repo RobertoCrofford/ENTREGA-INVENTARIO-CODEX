@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Role extends Model
 {
-    public const INVITADO = 'invitado';
+    public const APOYO_TECNICO = 'invitado';
+
+    // Conserva compatibilidad con cuentas y referencias existentes.
+    public const INVITADO = self::APOYO_TECNICO;
 
     public const TECNICO = 'tecnico';
 

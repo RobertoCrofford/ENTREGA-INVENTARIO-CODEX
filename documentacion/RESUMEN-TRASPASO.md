@@ -23,8 +23,8 @@ Construir una intranet de inventario institucional ejecutada en contenedores Lin
 
 - Stock entero, mínimo `0` y nunca negativo.
 - Cuentas locales en la primera versión.
-- Roles: Invitado, Técnico, Director técnico y Superadministrador.
-- Todos pueden ver costos; Invitado es solo lectura.
+- Roles: Apoyo técnico (código histórico `invitado`), Técnico, Director técnico y Superadministrador.
+- Todos pueden ver costos; Apoyo técnico colabora en la operación, pero no importa, aprueba ni administra.
 - Productos fungibles: código interno y número de parte común obligatorios; código escaneable opcional.
 - Activos: activo fijo obligatorio; código escaneable opcional de 13 dígitos.
 - PC, notebooks y monitores son activos; mouse, teclados y cables son fungibles.
@@ -46,4 +46,3 @@ Construir una intranet de inventario institucional ejecutada en contenedores Lin
 - Destino externo de respaldo.
 
 Estos insumos no bloquean el desarrollo local y deben manejarse mediante configuración, nunca con valores inventados en producción.
-
