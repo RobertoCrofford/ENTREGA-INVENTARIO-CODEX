@@ -286,6 +286,58 @@ class SecurityRegressionTest extends TestCase
         $this->assertDatabaseHas('inventarios_fisicos', ['id' => $inventoryId, 'estado' => 'finalizado']);
     }
 
+    public function test_technician_can_remove_an_incorrect_scan_before_completing_inventory(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+
+        $this->actingAs($technician)->post(route('physical-inventories.store'), [
+            'ubicacion_id' => $asset->ubicacion_actual_id,
+        ])->assertRedirect();
+        $inventoryId = DB::table('inventarios_fisicos')->where('ubicacion_id', $asset->ubicacion_actual_id)->value('id');
+
+        $this->actingAs($technician)->post(route('physical-inventories.scan', $inventoryId), [
+            'codigo' => $asset->activo_fijo,
+        ])->assertRedirect();
+        $this->actingAs($technician)->delete(route('physical-inventories.scans.destroy', [$inventoryId, $asset->id]))
+            ->assertRedirect(route('physical-inventories.show', $inventoryId));
+
+        $this->assertDatabaseMissing('inventarios_fisicos_detalle', [
+            'inventario_fisico_id' => $inventoryId,
+            'activo_id' => $asset->id,
+        ]);
+        $this->assertDatabaseHas('bitacora', [
+            'usuario_id' => $technician->id,
+            'accion' => 'remover_escaneo',
+            'entidad_tipo' => 'inventario_fisico',
+            'entidad_id' => $inventoryId,
+        ]);
+        $this->actingAs($technician)->get(route('physical-inventories.show', $inventoryId))
+            ->assertOk()
+            ->assertSee($asset->activo_fijo)
+            ->assertSee('Pendientes de revisar');
+    }
+
+    public function test_a_scan_cannot_be_removed_from_a_completed_inventory(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+
+        $this->actingAs($technician)->post(route('physical-inventories.store'), [
+            'ubicacion_id' => $asset->ubicacion_actual_id,
+        ])->assertRedirect();
+        $inventoryId = DB::table('inventarios_fisicos')->where('ubicacion_id', $asset->ubicacion_actual_id)->value('id');
+        $this->actingAs($technician)->post(route('physical-inventories.scan', $inventoryId), ['codigo' => $asset->activo_fijo])->assertRedirect();
+        $this->actingAs($technician)->post(route('physical-inventories.complete', $inventoryId))->assertRedirect();
+
+        $this->actingAs($technician)->delete(route('physical-inventories.scans.destroy', [$inventoryId, $asset->id]))
+            ->assertStatus(409);
+        $this->assertDatabaseHas('inventarios_fisicos_detalle', [
+            'inventario_fisico_id' => $inventoryId,
+            'activo_id' => $asset->id,
+        ]);
+    }
+
     public function test_technical_support_can_access_physical_inventory(): void
     {
         $this->actingAs($this->user(Role::APOYO_TECNICO))
@@ -319,6 +371,9 @@ class SecurityRegressionTest extends TestCase
             'activo_id' => $asset->id,
             'resultado' => 'ubicacion_distinta',
         ]);
+        $this->assertDatabaseHas('inventarios_fisicos', ['id' => $inventoryId, 'estado' => 'pendiente']);
+
+        $this->actingAs($technician)->post(route('physical-inventories.complete', $inventoryId))->assertRedirect();
         $this->assertDatabaseHas('inventarios_fisicos', ['id' => $inventoryId, 'estado' => 'finalizado']);
     }
 

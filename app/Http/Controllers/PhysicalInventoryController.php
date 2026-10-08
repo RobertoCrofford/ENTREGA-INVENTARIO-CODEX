@@ -153,12 +153,6 @@ class PhysicalInventoryController extends Controller
                 ['codigo_escaneado' => $code, 'resultado' => $scanResult, 'escaneado_at' => now()]
             );
 
-            if ($inventory->estado === 'pendiente' && $this->pendingCount($inventory->id) === 0) {
-                DB::table('inventarios_fisicos')->where('id', $inventory->id)->update([
-                    'estado' => 'finalizado', 'finalizado_at' => now(), 'updated_at' => now(),
-                ]);
-            }
-
             return ['asset_id' => $asset->id, 'resultado' => $scanResult];
         });
 
@@ -168,6 +162,46 @@ class PhysicalInventoryController extends Controller
         $audit->record($request->user(), 'escanear', 'inventario_fisico', $physicalInventory, after: $result, notify: false);
 
         return redirect()->route('physical-inventories.show', $physicalInventory)->with('success', 'Lectura registrada.');
+    }
+
+    public function removeScan(Request $request, int $physicalInventory, int $asset, AuditService $audit): RedirectResponse
+    {
+        Gate::authorize('realizar-inventario-fisico');
+
+        $removed = DB::transaction(function () use ($physicalInventory, $asset): array {
+            $inventory = DB::table('inventarios_fisicos')->where('id', $physicalInventory)->lockForUpdate()->first();
+            abort_unless($inventory, 404);
+            abort_unless(in_array($inventory->estado, ['en_curso', 'pendiente'], true), 409, 'Una revisión finalizada no admite correcciones.');
+
+            $scan = DB::table('inventarios_fisicos_detalle')
+                ->where('inventario_fisico_id', $inventory->id)
+                ->where('activo_id', $asset)
+                ->lockForUpdate()
+                ->first();
+            abort_unless($scan, 404);
+
+            DB::table('inventarios_fisicos_detalle')->where('id', $scan->id)->delete();
+            DB::table('inventarios_fisicos')->where('id', $inventory->id)->update(['updated_at' => now()]);
+
+            return [
+                'activo_id' => $scan->activo_id,
+                'codigo_escaneado' => $scan->codigo_escaneado,
+                'resultado' => $scan->resultado,
+                'escaneado_at' => $scan->escaneado_at,
+            ];
+        });
+
+        $audit->record(
+            $request->user(),
+            'remover_escaneo',
+            'inventario_fisico',
+            $physicalInventory,
+            before: $removed,
+            reason: 'Corrección de una lectura registrada por error.',
+            notify: false,
+        );
+
+        return redirect()->route('physical-inventories.show', $physicalInventory)->with('success', 'Lectura removida. El activo puede escanearse nuevamente.');
     }
 
     public function complete(Request $request, int $physicalInventory, AuditService $audit): RedirectResponse
