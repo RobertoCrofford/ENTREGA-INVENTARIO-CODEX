@@ -104,6 +104,8 @@ El superadministrador también puede usar **Estado del sistema → Generar respa
 
 El archivo `docker-compose.yml` está preparado para recibir secretos desde **Environment variables** de la Stack en Portainer; no requiere ni busca un archivo `.env` en el servidor ni monta carpetas del host sobre la aplicación. Antes de pulsar **Deploy the stack**, agrega las variables indicadas en `.env.production.example`. Las obligatorias son `APP_KEY`, `ADMIN_RECOVERY_CODE`, `APP_URL`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS`.
 
+La aplicación y los contenedores usan `APP_TIMEZONE=America/Santiago` y `TZ=America/Santiago` para mantener consistentes las horas visibles, las tareas programadas y los registros. En Portainer conserva ambos valores, especialmente si el servidor físico usa UTC.
+
 Mantén `DB_QUEUE_RETRY_AFTER=960` o un valor superior al `--timeout=900` del worker. Así una importación extensa no vuelve a la cola mientras su ejecución anterior todavía está activa. El healthcheck público consulta `/ready`, que solo responde correctamente cuando Laravel y la base de datos están disponibles.
 
 Usa valores nuevos y privados para los secretos. Para `APP_KEY`, genera una clave de Laravel en un entorno seguro con `php artisan key:generate --show` y copia solo su resultado a Portainer. No subas `.env` ni contraseñas a GitHub.
