@@ -98,6 +98,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('physical-inventories', [PhysicalInventoryController::class, 'store'])->name('physical-inventories.store');
         Route::get('physical-inventories/{physicalInventory}', [PhysicalInventoryController::class, 'show'])->name('physical-inventories.show');
         Route::post('physical-inventories/{physicalInventory}/scan', [PhysicalInventoryController::class, 'scan'])->name('physical-inventories.scan');
+        Route::delete('physical-inventories/{physicalInventory}/scans/{asset}', [PhysicalInventoryController::class, 'removeScan'])->name('physical-inventories.scans.destroy');
         Route::post('physical-inventories/{physicalInventory}/complete', [PhysicalInventoryController::class, 'complete'])->name('physical-inventories.complete');
         Route::get('assets/{asset}/classify', [AssetController::class, 'classify'])->name('assets.classify');
         Route::patch('assets/{asset}/usage', [AssetController::class, 'updateUsage'])->name('assets.update-usage');
