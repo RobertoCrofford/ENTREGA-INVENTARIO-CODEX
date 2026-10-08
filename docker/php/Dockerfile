@@ -23,7 +23,7 @@ FROM php:8.4-fpm-alpine
 
 WORKDIR /var/www/html
 
-RUN apk add --no-cache icu-libs libzip oniguruma \
+RUN apk add --no-cache icu-libs libzip oniguruma tzdata \
     && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS icu-dev libzip-dev oniguruma-dev \
     && docker-php-ext-install -j1 bcmath intl pdo_mysql zip \
     && apk del .build-deps

@@ -37,6 +37,12 @@ class SecurityRegressionTest extends TestCase
         $this->assertSame(':memory:', config('database.connections.sqlite.database'));
     }
 
+    public function test_application_uses_the_configured_chilean_timezone(): void
+    {
+        $this->assertSame('America/Santiago', config('app.timezone'));
+        $this->assertSame('America/Santiago', date_default_timezone_get());
+    }
+
     public function test_first_superadministrator_can_be_configured_once_from_the_browser(): void
     {
         $this->get(route('login'))->assertOk()->assertSee('Configurar primera cuenta');
