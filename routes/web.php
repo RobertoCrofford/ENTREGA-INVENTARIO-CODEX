@@ -62,7 +62,9 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             return view('dashboard', [
                 'isTechnicalSupport' => $isTechnicalSupport,
-                'stockAgotado' => Schema::hasTable('existencias') ? DB::table('existencias')->where('activo', true)->where('cantidad', 0)->count() : 0,
+                'stockAgotado' => Schema::hasTable('existencias') ? DB::table('productos as producto')->where('producto.activo', true)
+                    ->whereNotExists(fn ($query) => $query->selectRaw('1')->from('existencias as existencia')
+                        ->whereColumn('existencia.producto_id', 'producto.id')->where('existencia.activo', true)->where('existencia.cantidad', '>', 0))->count() : 0,
                 'totalActivos' => Schema::hasTable('activos') ? DB::table('activos')->count() : 0,
                 'activosOperativos' => Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'operativo')->count() : 0,
                 'activosSinClasificar' => Schema::hasTable('activos') ? DB::table('activos')->where('uso', 'sin_definir')->count() : 0,
