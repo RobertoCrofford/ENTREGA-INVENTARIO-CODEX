@@ -24,6 +24,13 @@ class ProductController extends Controller
 
         $term = trim((string) $request->query('q', ''));
         $onlyOutOfStock = $request->boolean('stock_agotado');
+        $outOfStockStocks = $onlyOutOfStock ? DB::table('existencias as existencia')
+            ->join('productos as producto', 'producto.id', '=', 'existencia.producto_id')
+            ->join('ubicaciones as bodega', 'bodega.id', '=', 'existencia.bodega_id')
+            ->where('existencia.activo', true)->where('producto.activo', true)->where('existencia.cantidad', 0)
+            ->orderBy('producto.nombre')->orderBy('bodega.nombre')
+            ->select('existencia.id', 'existencia.cantidad', 'producto.id as producto_id', 'producto.codigo_interno', 'producto.nombre as producto_nombre', 'producto.marca', 'producto.modelo', 'bodega.codigo as bodega_codigo', 'bodega.nombre as bodega_nombre')
+            ->paginate(20, ['*'], 'agotados')->withQueryString() : null;
         $products = Product::query()->with('categoria')
             ->withSum(['existencias as stock_total' => fn ($stocks) => $stocks->where('activo', true)], 'cantidad')
             ->when($term !== '', fn ($query) => $query->whereAny(['codigo_interno', 'numero_parte', 'nombre', 'marca', 'modelo'], 'like', "%{$term}%"))
@@ -40,7 +47,7 @@ class ProductController extends Controller
                 ->orWhereIn('codigo_escaneo_id', DB::table('codigos_escaneo')->where('codigo', $term)->select('id')))
             ->first();
 
-        return view('products.index', compact('products', 'term', 'onlyOutOfStock', 'assetMatch'));
+        return view('products.index', compact('products', 'term', 'onlyOutOfStock', 'outOfStockStocks', 'assetMatch'));
     }
 
     public function create(Request $request): View
