@@ -19,12 +19,12 @@
     </div>
 @endif
 
-@if($term === '')
+@if($term === '' && ! $onlyOutOfStock)
     <div class="card"><div class="card-body text-center py-5 text-body-secondary"><i class="bi bi-search fs-2 d-block mb-2"></i>Ingresa un código, número de parte o nombre para ver el detalle de un producto.</div></div>
 @elseif($products->isEmpty())
-    <div class="card"><div class="card-body text-center py-5 text-body-secondary">No se encontraron productos para “{{ $term }}”.</div></div>
+    <div class="card"><div class="card-body text-center py-5 text-body-secondary">{{ $onlyOutOfStock ? 'No hay productos con stock agotado.' : 'No se encontraron productos para “'.$term.'”.' }}</div></div>
 @else
-    <p class="text-body-secondary small">{{ $products->total() }} resultado(s) para “{{ $term }}”.</p>
+    <p class="text-body-secondary small">{{ $onlyOutOfStock ? $products->total().' producto(s) con stock agotado.' : $products->total().' resultado(s) para “'.$term.'”.' }}</p>
     <div class="row g-3">
         @foreach($products as $product)
             <div class="col-12">
