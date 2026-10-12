@@ -40,7 +40,7 @@ class ProductController extends Controller
                 ->orWhereIn('codigo_escaneo_id', DB::table('codigos_escaneo')->where('codigo', $term)->select('id')))
             ->first();
 
-        return view('products.index', compact('products', 'term', 'assetMatch'));
+        return view('products.index', compact('products', 'term', 'onlyOutOfStock', 'assetMatch'));
     }
 
     public function create(Request $request): View
