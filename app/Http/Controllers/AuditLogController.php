@@ -58,6 +58,7 @@ class AuditLogController extends Controller
             })
             ->select('bitacora.*', 'users.name as usuario_nombre', 'users.username as usuario_username', 'activo_bitacora.activo_fijo as activo_fijo');
 
+        $matchingAssetIds = [];
         if (! empty($filters['q'])) {
             $search = trim($filters['q']);
             $matchingAssetIds = AssetCodeMatch::assetIds($search);
@@ -66,6 +67,8 @@ class AuditLogController extends Controller
                     ->orWhere('bitacora.entidad_tipo', 'like', "%{$search}%")
                     ->orWhere('bitacora.entidad_id', 'like', "%{$search}%")
                     ->orWhere('bitacora.motivo', 'like', "%{$search}%")
+                    ->orWhere('bitacora.antes_json', 'like', "%{$search}%")
+                    ->orWhere('bitacora.despues_json', 'like', "%{$search}%")
                     ->orWhere('users.name', 'like', "%{$search}%")
                     ->orWhere('users.username', 'like', "%{$search}%")
                     ->orWhere('activo_bitacora.activo_fijo', 'like', "%{$search}%")
@@ -106,12 +109,30 @@ class AuditLogController extends Controller
 
             return $entry;
         });
+        $assetSearchNotice = null;
+        if ($entries->isEmpty() && count($matchingAssetIds) === 1) {
+            $asset = DB::table('activos')->find($matchingAssetIds[0], ['id', 'activo_fijo', 'numero_serie']);
+            $latestEvent = DB::table('bitacora')
+                ->where('entidad_tipo', 'activo')
+                ->where('entidad_id', $matchingAssetIds[0])
+                ->orderByDesc('creado_at')
+                ->first(['creado_at', 'accion']);
+
+            if ($asset) {
+                $assetSearchNotice = (object) [
+                    'activo_fijo' => $asset->activo_fijo,
+                    'numero_serie' => $asset->numero_serie,
+                    'latest_event_at' => $latestEvent?->creado_at,
+                    'latest_event_action' => $latestEvent?->accion,
+                ];
+            }
+        }
         $archives = DB::table('archivos_auditoria')->orderByDesc('id')->paginate(20);
         $users = DB::table('users')->where('activo', true)->orderBy('name')->get(['id', 'name', 'username']);
         $actions = DB::table('bitacora')->distinct()->orderBy('accion')->pluck('accion');
         $entities = DB::table('bitacora')->distinct()->orderBy('entidad_tipo')->pluck('entidad_tipo');
 
-        return view('audit-logs.index', compact('archives', 'entries', 'users', 'actions', 'entities'));
+        return view('audit-logs.index', compact('archives', 'entries', 'users', 'actions', 'entities', 'assetSearchNotice'));
     }
 
     private function auditValue(mixed $value): string
