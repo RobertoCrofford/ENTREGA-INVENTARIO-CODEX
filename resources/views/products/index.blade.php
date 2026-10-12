@@ -19,7 +19,10 @@
     </div>
 @endif
 
-@if($term === '' && ! $onlyOutOfStock)
+@if($onlyOutOfStock)
+    <p class="text-body-secondary small">{{ $outOfStockStocks->total() }} registro(s) de stock agotado. Cada fila indica el producto y la bodega que necesita reposición.</p>
+    <div class="card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Producto</th><th>Código</th><th>Bodega</th><th>Stock</th><th></th></tr></thead><tbody>@forelse($outOfStockStocks as $stock)<tr><td><strong>{{ $stock->producto_nombre }}</strong><div class="small text-body-secondary">{{ trim(($stock->marca ?: '').' '.($stock->modelo ?: '')) ?: '—' }}</div></td><td><code>{{ $stock->codigo_interno }}</code></td><td>{{ $stock->bodega_codigo }} — {{ $stock->bodega_nombre }}</td><td><span class="badge text-bg-danger">0 unidades</span></td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ route('products.show', $stock->producto_id) }}">Ver producto</a></td></tr>@empty<tr><td colspan="5" class="text-center text-success p-4"><i class="bi bi-check-circle me-1"></i>No hay stock agotado.</td></tr>@endforelse</tbody></table></div></div><div class="mt-3">{{ $outOfStockStocks->links() }}</div>
+@elseif($term === '')
     <div class="card"><div class="card-body text-center py-5 text-body-secondary"><i class="bi bi-search fs-2 d-block mb-2"></i>Ingresa un código, número de parte o nombre para ver el detalle de un producto.</div></div>
 @elseif($products->isEmpty())
     <div class="card"><div class="card-body text-center py-5 text-body-secondary">{{ $onlyOutOfStock ? 'No hay productos con stock agotado.' : 'No se encontraron productos para “'.$term.'”.' }}</div></div>
