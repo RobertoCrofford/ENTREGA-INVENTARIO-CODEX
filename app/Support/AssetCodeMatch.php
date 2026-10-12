@@ -14,7 +14,11 @@ class AssetCodeMatch
     {
         $code = trim($code);
         if (! preg_match('/^\d{6,}$/', $code)) {
-            return [];
+            return DB::table('activos')
+                ->whereRaw('LOWER(numero_serie) = ?', [mb_strtolower($code)])
+                ->orderBy('id')
+                ->pluck('id')
+                ->all();
         }
 
         return DB::table('activos')->select(['id', 'activo_fijo'])->orderBy('id')->cursor()
