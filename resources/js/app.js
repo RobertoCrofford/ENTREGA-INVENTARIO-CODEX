@@ -1,5 +1,26 @@
 import 'bootstrap';
 
+document.querySelectorAll('[data-theme-user]').forEach((menu) => {
+    const userId = menu.dataset.themeUser;
+    const key = `inventario-tema-${userId}`;
+    const labels = { actual: 'Color actual', blue: 'Azul institucional', dark: 'Oscuro' };
+    const label = menu.querySelector('.theme-menu-label');
+    const applyTheme = (theme) => {
+        const selected = labels[theme] ? theme : 'actual';
+        document.documentElement.dataset.theme = selected;
+        localStorage.setItem(key, selected);
+        if (label) label.textContent = labels[selected];
+        menu.querySelectorAll('[data-theme-option]').forEach((option) => {
+            const active = option.dataset.themeOption === selected;
+            option.classList.toggle('active', active);
+            option.querySelector('.theme-check')?.classList.toggle('invisible', !active);
+        });
+    };
+
+    applyTheme(localStorage.getItem(key) || document.documentElement.dataset.theme || 'actual');
+    menu.querySelectorAll('[data-theme-option]').forEach((option) => option.addEventListener('click', () => applyTheme(option.dataset.themeOption)));
+});
+
 const fieldRules = {
     numero_parte: { placeholder: 'Ej: SN-AB12-3456', pattern: '[A-Za-z0-9-]+', maxLength: 40, title: 'Solo letras, números y guiones.' },
     codigo: { placeholder: 'Ej: PRD-0000123 o ABC123', pattern: '[A-Za-z0-9-]+', maxLength: 40, title: 'Solo letras, números y guiones.' },

@@ -1,0 +1,14 @@
+@extends('layouts.print')
+@section('title', 'Inventario físico '.$inventory->ubicacion_nombre)
+@section('content')
+@php($locationLabel = str_ends_with(mb_strtoupper($inventory->ubicacion_codigo), '-'.mb_strtoupper($inventory->ubicacion_nombre)) ? ucfirst($inventory->ubicacion_tipo).' '.$inventory->ubicacion_nombre : $inventory->ubicacion_codigo.' — '.$inventory->ubicacion_nombre)
+@php($stateText = ['en_curso' => 'En curso', 'pendiente' => 'Con pendientes', 'finalizado' => 'Finalizada'][$inventory->estado] ?? $inventory->estado)
+<header class="header"><h1>Inventario físico: {{ $locationLabel }}</h1><p class="muted">Revisión iniciada el {{ \Illuminate\Support\Carbon::parse($inventory->iniciado_at)->format('d-m-Y H:i') }} por {{ $inventory->iniciado_por_nombre }}</p></header>
+<dl class="meta"><div><dt>Estado</dt><dd><strong>{{ $stateText }}</strong></dd></div><div><dt>Ubicación</dt><dd>{{ collect([$inventory->ubicacion_edificio, $inventory->ubicacion_piso, ucfirst($inventory->ubicacion_tipo)])->filter()->join(' · ') ?: '—' }}</dd></div></dl>
+<section class="summary"><div><span>Esperados</span><strong>{{ $expected->count() }}</strong></div><div><span>Escaneados</span><strong>{{ $scans->count() }}</strong></div><div><span>Pendientes</span><strong>{{ $pending->count() }}</strong></div></section>
+<h2>Lecturas registradas</h2>
+<table><thead><tr><th>Activo</th><th>Serie / modelo</th><th>Resultado</th><th>Ubicación actual</th></tr></thead><tbody>@forelse($scans as $scan)<tr><td><strong>{{ $scan->activo_fijo }}</strong></td><td>{{ collect([$scan->numero_serie, trim(($scan->marca ?: '').' '.($scan->modelo ?: ''))])->filter()->join(' · ') ?: '—' }}</td><td class="{{ $scan->resultado === 'encontrado' ? 'ok' : 'warning' }}">{{ ['encontrado' => 'Encontrado', 'ubicacion_distinta' => 'Ubicación distinta', 'sin_ubicacion' => 'Sin ubicación'][$scan->resultado] ?? $scan->resultado }}</td><td>{{ $scan->ubicacion_actual_nombre ? $scan->ubicacion_actual_codigo.' — '.$scan->ubicacion_actual_nombre : ($scan->responsable_nombre ? 'Asignado a: '.$scan->responsable_nombre : 'Sin ubicación') }}</td></tr>@empty<tr><td colspan="4">Aún no hay lecturas registradas.</td></tr>@endforelse</tbody></table>
+<h2>Activos pendientes de revisar</h2>
+<table><thead><tr><th>Activo</th><th>Número de serie</th><th>Marca / modelo</th></tr></thead><tbody>@forelse($pending as $asset)<tr><td><strong>{{ $asset->activo_fijo }}</strong></td><td>{{ $asset->numero_serie ?: '—' }}</td><td>{{ trim(($asset->marca ?: '').' '.($asset->modelo ?: '')) ?: '—' }}</td></tr>@empty<tr><td colspan="3" class="ok">No hay activos pendientes de revisar.</td></tr>@endforelse</tbody></table>
+<footer class="footer">Documento informativo generado por Inventario Institucional el {{ now()->format('d-m-Y H:i') }}.</footer>
+@endsection

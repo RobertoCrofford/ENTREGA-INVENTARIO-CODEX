@@ -115,6 +115,27 @@ class PhysicalInventoryController extends Controller
         return view('physical-inventories.show', compact('inventory', 'expected', 'scans', 'pending'));
     }
 
+    public function print(int $physicalInventory): View
+    {
+        Gate::authorize('realizar-inventario-fisico');
+
+        $inventory = $this->inventory($physicalInventory);
+        $expected = $this->expectedAssets($inventory->id);
+        $scans = DB::table('inventarios_fisicos_detalle as detalle')
+            ->join('activos', 'activos.id', '=', 'detalle.activo_id')
+            ->leftJoin('ubicaciones', 'ubicaciones.id', '=', 'activos.ubicacion_actual_id')
+            ->where('detalle.inventario_fisico_id', $inventory->id)
+            ->orderBy('activos.activo_fijo')
+            ->get([
+                'detalle.*', 'activos.activo_fijo', 'activos.numero_serie', 'activos.marca', 'activos.modelo',
+                'activos.responsable_nombre', 'ubicaciones.codigo as ubicacion_actual_codigo',
+                'ubicaciones.nombre as ubicacion_actual_nombre',
+            ]);
+        $pending = $expected->whereNotIn('id', $scans->pluck('activo_id'))->values();
+
+        return view('physical-inventories.print', compact('inventory', 'expected', 'scans', 'pending'));
+    }
+
     public function scan(Request $request, int $physicalInventory, AuditService $audit): RedirectResponse
     {
         Gate::authorize('realizar-inventario-fisico');

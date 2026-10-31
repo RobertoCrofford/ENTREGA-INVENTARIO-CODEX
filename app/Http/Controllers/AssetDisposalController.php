@@ -103,7 +103,15 @@ class AssetDisposalController extends Controller
         abort_unless($record && $record->estado_pdf === 'generado' && $record->pdf_path && Storage::disk('local')->exists($record->pdf_path), 404);
         abort_if(auth()->user()->tieneRol(Role::APOYO_TECNICO) && $record->solicitado_por !== auth()->id(), 403);
 
-        return Storage::disk('local')->download($record->pdf_path, 'acta-baja-activo-'.$disposal.'.pdf');
+        $asset = DB::table('activos as activo')
+            ->where('activo.id', $record->activo_id)
+            ->first(['activo.activo_fijo', 'activo.numero_serie']);
+        // El número de serie permite identificar físicamente el equipo. Si no se
+        // registró, se usa el activo fijo para mantener una descarga identificable.
+        $identifier = $asset?->numero_serie ?: $asset?->activo_fijo ?: "activo-{$record->activo_id}";
+        $identifier = trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $identifier), '-');
+
+        return Storage::disk('local')->download($record->pdf_path, "acta-baja-{$identifier}.pdf");
     }
 
     private function notifyApprovers(int $requestId, string $requesterName, int $assetId): void

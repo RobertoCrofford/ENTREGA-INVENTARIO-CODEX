@@ -64,6 +64,15 @@ class AssetController extends Controller
         return view('assets.show', compact('asset'));
     }
 
+    public function print(Asset $asset): View
+    {
+        Gate::authorize('consultar-inventario');
+
+        $asset->load(['type', 'status', 'location']);
+
+        return view('assets.print', compact('asset'));
+    }
+
     public function store(Request $request, AuditService $audit): RedirectResponse
     {
         Gate::authorize('gestionar-inventario');

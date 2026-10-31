@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Inventario Institucional')</title>
+    @auth
+        <script>document.documentElement.dataset.theme = localStorage.getItem('inventario-tema-{{ auth()->id() }}') || 'actual';</script>
+    @endauth
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="institutional-page">
@@ -13,6 +16,15 @@
         <a class="brand-link" href="{{ route('dashboard') }}"><i class="bi bi-boxes"></i><span>Inventario Institucional</span></a>
         <span class="system-status"><span></span>Operativo</span>
         <div class="topbar-actions">
+            <div class="dropdown theme-menu" data-theme-user="{{ auth()->id() }}">
+                <button class="topbar-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Cambiar apariencia" title="Cambiar apariencia"><i class="bi bi-palette"></i><span class="theme-menu-label">Color actual</span></button>
+                <div class="dropdown-menu dropdown-menu-end p-2 theme-dropdown">
+                    <div class="dropdown-header px-2 pt-1">Apariencia</div>
+                    <button class="dropdown-item theme-option" type="button" data-theme-option="actual"><i class="bi bi-palette me-2"></i>Color actual <i class="bi bi-check2 ms-auto theme-check"></i></button>
+                    <button class="dropdown-item theme-option" type="button" data-theme-option="blue"><i class="bi bi-droplet-half me-2"></i>Azul institucional <i class="bi bi-check2 ms-auto theme-check"></i></button>
+                    <button class="dropdown-item theme-option" type="button" data-theme-option="dark"><i class="bi bi-moon-stars me-2"></i>Oscuro <i class="bi bi-check2 ms-auto theme-check"></i></button>
+                </div>
+            </div>
             @can('ver-notificaciones')
                 <div class="dropdown notification-menu" data-notification-refresh-url="{{ route('notifications.summary') }}">
                     <button class="topbar-icon position-relative" type="button" data-bs-toggle="dropdown" data-notification-read-url="{{ route('notifications.read-all') }}" aria-expanded="false" aria-label="Notificaciones"><i class="bi bi-bell"></i>@if($unreadNotifications)<span class="notification-dot">{{ $unreadNotifications }}</span>@endif</button>
