@@ -43,8 +43,8 @@
 @endcan
 
 <div class="card calendar-card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center gap-2"><a class="btn btn-sm btn-outline-light" href="{{ route('events.index', ['mes' => $previousMonth]) }}" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></a><h2 class="h5 mb-0 text-capitalize">{{ $month->translatedFormat('F Y') }}</h2><a class="btn btn-sm btn-outline-light" href="{{ route('events.index', ['mes' => $nextMonth]) }}" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></a></div>
-    <div class="calendar-grid">
+    <div class="card-header calendar-toolbar"><div class="d-flex flex-wrap justify-content-between align-items-center gap-3"><div><span class="eyebrow">Vista de eventos</span><h2 class="h5 mb-0">{{ $periodLabel }}</h2></div><div class="btn-group"><a class="btn btn-sm {{ $period === 'semana' ? 'btn-primary' : 'btn-outline-light' }}" href="{{ route('events.index', ['periodo' => 'semana']) }}">Semana</a><a class="btn btn-sm {{ $period === 'mes' ? 'btn-primary' : 'btn-outline-light' }}" href="{{ route('events.index', ['periodo' => 'mes', 'mes' => $month->format('Y-m')]) }}">Mes</a><a class="btn btn-sm {{ $period === 'anio' ? 'btn-primary' : 'btn-outline-light' }}" href="{{ route('events.index', ['periodo' => 'anio']) }}">Año</a></div></div><div class="small text-body-secondary mt-2"><strong class="text-white">{{ $periodEvents->count() }}</strong> evento(s) en este período.</div><div class="d-flex justify-content-between align-items-center gap-2 mt-3"><a class="btn btn-sm btn-outline-light" href="{{ route('events.index', ['mes' => $previousMonth, 'periodo' => $period]) }}" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></a><h2 class="h5 mb-0 text-capitalize">{{ $month->translatedFormat('F Y') }}</h2><a class="btn btn-sm btn-outline-light" href="{{ route('events.index', ['mes' => $nextMonth, 'periodo' => $period]) }}" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></a></div></div>
+    @if($period === 'semana')<div class="calendar-period-list calendar-week-view">@foreach(\Carbon\CarbonPeriod::create(now()->startOfWeek(), now()->endOfWeek()) as $weekDay)<a href="{{ route('events.index', ['mes' => $weekDay->format('Y-m'), 'dia' => $weekDay->toDateString(), 'periodo' => 'semana']) }}"><strong>{{ $weekDay->translatedFormat('D d') }}</strong><span>{{ $periodEvents->filter(fn($event) => \Carbon\Carbon::parse($event->inicio_at)->isSameDay($weekDay))->count() }} evento(s)</span></a>@endforeach</div>@elseif($period === 'anio')<div class="calendar-period-list calendar-year-view">@foreach(range(1, 12) as $number)@php($yearMonth = now()->copy()->setMonth($number))<a href="{{ route('events.index', ['mes' => $yearMonth->format('Y-m'), 'periodo' => 'mes']) }}"><strong>{{ $yearMonth->translatedFormat('F') }}</strong><span>{{ $periodEvents->filter(fn($event) => \Carbon\Carbon::parse($event->inicio_at)->month === $number)->count() }} evento(s)</span></a>@endforeach</div>@else<div class="calendar-grid">
         @foreach(['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as $dayName)<div class="calendar-weekday">{{ $dayName }}</div>@endforeach
         @foreach($weeks as $week)
             @foreach($week as $day)
@@ -57,7 +57,8 @@
                 </a>
             @endforeach
         @endforeach
-    </div>
+    </div>@endif
+    @if($period !== 'mes')<div class="calendar-period-list">@forelse($periodEvents->take(12) as $periodEvent)<a href="{{ route('events.index', ['mes' => \Carbon\Carbon::parse($periodEvent->inicio_at)->format('Y-m'), 'dia' => \Carbon\Carbon::parse($periodEvent->inicio_at)->toDateString(), 'periodo' => $period]) }}"><strong>{{ \Carbon\Carbon::parse($periodEvent->inicio_at)->translatedFormat('d M') }}</strong><span>{{ $periodEvent->titulo }}</span>@if($periodEvent->lugar)<small>{{ $periodEvent->lugar }}</small>@endif</a>@empty<p class="mb-0 text-body-secondary">No hay eventos registrados para este período.</p>@endforelse</div>@endif
 </div>
 
 @if($selectedDate)

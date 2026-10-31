@@ -26,6 +26,12 @@ class CalendarEventController extends Controller
     {
         Gate::authorize('ver-eventos');
         $month = $this->month($request->query('mes'));
+        $period = in_array($request->query('periodo'), ['semana', 'mes', 'anio'], true) ? $request->query('periodo') : 'mes';
+        [$periodFrom, $periodUntil, $periodLabel] = match ($period) {
+            'semana' => [$month->copy()->startOfWeek(), $month->copy()->endOfWeek(), 'Eventos de la semana seleccionada'],
+            'anio' => [$month->copy()->startOfYear(), $month->copy()->endOfYear(), 'Eventos del año '.$month->year],
+            default => [$month->copy()->startOfMonth(), $month->copy()->endOfMonth(), 'Eventos de '.$month->translatedFormat('F Y')],
+        };
         $from = $month->copy()->startOfMonth();
         $until = $month->copy()->endOfMonth();
         $events = DB::table('eventos_calendario')
@@ -36,14 +42,17 @@ class CalendarEventController extends Controller
         $eventsByDay = $this->eventsByDay($events, $from, $until);
         $selectedDate = $this->selectedDate($request->query('dia'), $month);
 
-        return view('events.index', [
+        return view('events.safe-index', [
             'month' => $month,
-            'previousMonth' => $month->copy()->subMonth()->format('Y-m'),
-            'nextMonth' => $month->copy()->addMonth()->format('Y-m'),
+            'previousMonth' => $month->copy()->subMonthNoOverflow()->startOfMonth()->format('Y-m'),
+            'nextMonth' => $month->copy()->addMonthNoOverflow()->startOfMonth()->format('Y-m'),
             'eventsByDay' => $eventsByDay,
             'selectedDate' => $selectedDate,
             'selectedEvents' => $selectedDate ? $eventsByDay->get($selectedDate, collect()) : collect(),
             'weeks' => $this->weeks($month),
+            'period' => $period,
+            'periodLabel' => $periodLabel,
+            'periodEvents' => DB::table('eventos_calendario')->where('estado', '!=', 'cancelado')->whereBetween('inicio_at', [$periodFrom, $periodUntil])->orderBy('inicio_at')->get(),
             'upcomingEvents' => DB::table('eventos_calendario')->where('estado', 'programado')->where('inicio_at', '>=', now()->startOfDay())->orderBy('inicio_at')->limit(8)->get(),
         ]);
     }
@@ -166,7 +175,7 @@ class CalendarEventController extends Controller
 
     private function month(?string $value): Carbon
     {
-        return preg_match('/^\d{4}-\d{2}$/', (string) $value) ? Carbon::createFromFormat('Y-m', $value)->startOfMonth() : now()->startOfMonth();
+        return preg_match('/^\d{4}-\d{2}$/', (string) $value) ? Carbon::createFromFormat('!Y-m', $value)->startOfMonth() : now()->startOfMonth();
     }
 
     private function weeks(Carbon $month): array

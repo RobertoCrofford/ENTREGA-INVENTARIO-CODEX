@@ -93,6 +93,7 @@
 @else
     <main class="container py-4">@yield('content')</main>
 @endauth
+@stack('scripts')
 </body>
 </html>
 

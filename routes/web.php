@@ -20,6 +20,7 @@ use App\Http\Controllers\RepairController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\DashboardReportController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -59,6 +60,25 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::middleware('password.changed')->group(function () {
         Route::get('/dashboard', function () {
             $isTechnicalSupport = auth()->user()->tieneRol(\App\Models\Role::APOYO_TECNICO);
+            $assetStates = Schema::hasTable('estados_activo') ? DB::table('activos')
+                ->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')
+                ->selectRaw('estados_activo.codigo, COUNT(*) as total')->groupBy('estados_activo.codigo')->pluck('total', 'codigo') : collect();
+            $repairStates = Schema::hasTable('reparaciones') ? DB::table('reparaciones')
+                ->selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado') : collect();
+            $physicalStates = Schema::hasTable('inventarios_fisicos') ? DB::table('inventarios_fisicos')
+                ->selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado') : collect();
+            $months = collect(range(5, 0))->map(fn ($offset) => now()->subMonths($offset)->format('Y-m'));
+            $eventRows = Schema::hasTable('eventos_calendario') ? DB::table('eventos_calendario')
+                ->where('estado', '!=', 'cancelado')->where('inicio_at', '>=', now()->subMonths(5)->startOfMonth())
+                ->selectRaw("DATE_FORMAT(inicio_at, '%Y-%m') as periodo, COUNT(*) as total")->groupBy('periodo')->pluck('total', 'periodo') : collect();
+            $movementRows = Schema::hasTable('movimientos_inventario') ? DB::table('movimientos_inventario')
+                ->where('estado', 'publicado')->where('publicado_at', '>=', now()->subMonths(5)->startOfMonth())
+                ->selectRaw("DATE_FORMAT(publicado_at, '%Y-%m') as periodo, COUNT(*) as total")->groupBy('periodo')->pluck('total', 'periodo') : collect();
+            $eventMonths = $months->map(fn ($month) => ['label' => \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M'), 'total' => (int) ($eventRows[$month] ?? 0)]);
+            $movementMonths = $months->map(fn ($month) => ['label' => \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M'), 'total' => (int) ($movementRows[$month] ?? 0)]);
+            $eventsThisWeek = Schema::hasTable('eventos_calendario') ? DB::table('eventos_calendario')->where('estado', '!=', 'cancelado')->whereBetween('inicio_at', [now()->startOfWeek(), now()->endOfWeek()])->count() : 0;
+            $eventsThisYear = Schema::hasTable('eventos_calendario') ? DB::table('eventos_calendario')->where('estado', '!=', 'cancelado')->whereYear('inicio_at', now()->year)->count() : 0;
+            $physicalTotal = (int) $physicalStates->sum();
 
             return view('dashboard', [
                 'isTechnicalSupport' => $isTechnicalSupport,
@@ -71,8 +91,26 @@ Route::middleware(['auth', 'active'])->group(function () {
                 'activosReparacion' => Schema::hasTable('activos') && Schema::hasTable('estados_activo') ? DB::table('activos')->join('estados_activo', 'activos.estado_activo_id', '=', 'estados_activo.id')->where('estados_activo.codigo', 'en_reparacion')->count() : 0,
                 'solicitudesPendientes' => Schema::hasTable('solicitudes_baja_activo') ? DB::table('solicitudes_baja_activo')->where('estado', 'pendiente')->when($isTechnicalSupport, fn ($query) => $query->where('solicitado_por', auth()->id()))->count() : 0,
                 'movimientosRecientes' => Schema::hasTable('movimientos_inventario') ? DB::table('movimientos_inventario')->where('estado', 'publicado')->orderByDesc('publicado_at')->limit(5)->get() : collect(),
+                'assetChart' => [
+                    ['label' => 'Operativos', 'count' => (int) ($assetStates['operativo'] ?? 0), 'color' => '#52c888'],
+                    ['label' => 'En reparación', 'count' => (int) ($assetStates['en_reparacion'] ?? 0), 'color' => '#f2c14e'],
+                    ['label' => 'Dado de baja', 'count' => (int) ($assetStates['dado_baja'] ?? 0), 'color' => '#e4778b'],
+                    ['label' => 'Otros', 'count' => max(0, (int) (Schema::hasTable('activos') ? DB::table('activos')->count() : 0) - (int) $assetStates->sum()), 'color' => '#9f8bb1'],
+                ],
+                'repairChart' => [
+                    ['label' => 'Abiertas', 'count' => (int) ($repairStates['abierta'] ?? 0), 'color' => '#e4778b'],
+                    ['label' => 'En proceso', 'count' => (int) ($repairStates['en_proceso'] ?? 0), 'color' => '#f2c14e'],
+                    ['label' => 'Resueltas', 'count' => (int) ($repairStates['resuelta'] ?? 0), 'color' => '#52c888'],
+                ],
+                'physicalTotal' => $physicalTotal,
+                'physicalFinished' => (int) ($physicalStates['finalizado'] ?? 0),
+                'eventMonths' => $eventMonths,
+                'movementMonths' => $movementMonths,
+                'eventsThisWeek' => $eventsThisWeek,
+                'eventsThisYear' => $eventsThisYear,
             ]);
         })->name('dashboard');
+        Route::get('/dashboard/report', [DashboardReportController::class, 'download'])->name('dashboard.report');
         Route::resource('users', UserController::class)->except('show', 'destroy');
         Route::put('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
         Route::get('notifications/summary', [NotificationController::class, 'summary'])->name('notifications.summary');
