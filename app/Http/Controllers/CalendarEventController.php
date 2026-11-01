@@ -27,10 +27,22 @@ class CalendarEventController extends Controller
         Gate::authorize('ver-eventos');
         $month = $this->month($request->query('mes'));
         $period = in_array($request->query('periodo'), ['semana', 'mes', 'anio'], true) ? $request->query('periodo') : 'mes';
-        [$periodFrom, $periodUntil, $periodLabel] = match ($period) {
-            'semana' => [$month->copy()->startOfWeek(), $month->copy()->endOfWeek(), 'Eventos de la semana seleccionada'],
-            'anio' => [$month->copy()->startOfYear(), $month->copy()->endOfYear(), 'Eventos del año '.$month->year],
-            default => [$month->copy()->startOfMonth(), $month->copy()->endOfMonth(), 'Eventos de '.$month->translatedFormat('F Y')],
+        $anchor = $this->anchorDate($request->query('fecha'), $month);
+        [$periodFrom, $periodUntil, $periodLabel, $previousAnchor, $nextAnchor] = match ($period) {
+            'semana' => [
+                $anchor->copy()->startOfWeek(Carbon::MONDAY),
+                $anchor->copy()->endOfWeek(Carbon::SUNDAY),
+                'Semana del '.$anchor->copy()->startOfWeek(Carbon::MONDAY)->translatedFormat('d M').' al '.$anchor->copy()->endOfWeek(Carbon::SUNDAY)->translatedFormat('d M Y'),
+                $anchor->copy()->subWeek(), $anchor->copy()->addWeek(),
+            ],
+            'anio' => [
+                $anchor->copy()->startOfYear(), $anchor->copy()->endOfYear(), 'Eventos del año '.$anchor->year,
+                $anchor->copy()->subYear(), $anchor->copy()->addYear(),
+            ],
+            default => [
+                $month->copy()->startOfMonth(), $month->copy()->endOfMonth(), 'Eventos de '.$month->translatedFormat('F Y'),
+                $month->copy()->subMonthNoOverflow()->startOfMonth(), $month->copy()->addMonthNoOverflow()->startOfMonth(),
+            ],
         };
         $from = $month->copy()->startOfMonth();
         $until = $month->copy()->endOfMonth();
@@ -42,7 +54,14 @@ class CalendarEventController extends Controller
         $eventsByDay = $this->eventsByDay($events, $from, $until);
         $selectedDate = $this->selectedDate($request->query('dia'), $month);
 
-        return view('events.safe-index', [
+        $periodEvents = DB::table('eventos_calendario')
+            ->where('estado', '!=', 'cancelado')
+            ->where('inicio_at', '<=', $periodUntil->copy()->endOfDay())
+            ->where(fn ($query) => $query->whereNull('termino_at')->orWhere('termino_at', '>=', $periodFrom->copy()->startOfDay()))
+            ->orderBy('inicio_at')
+            ->get();
+
+        return view('events.index', [
             'month' => $month,
             'previousMonth' => $month->copy()->subMonthNoOverflow()->startOfMonth()->format('Y-m'),
             'nextMonth' => $month->copy()->addMonthNoOverflow()->startOfMonth()->format('Y-m'),
@@ -52,7 +71,18 @@ class CalendarEventController extends Controller
             'weeks' => $this->weeks($month),
             'period' => $period,
             'periodLabel' => $periodLabel,
-            'periodEvents' => DB::table('eventos_calendario')->where('estado', '!=', 'cancelado')->whereBetween('inicio_at', [$periodFrom, $periodUntil])->orderBy('inicio_at')->get(),
+            'periodEvents' => $periodEvents,
+            'periodFrom' => $periodFrom,
+            'periodUntil' => $periodUntil,
+            'previousPeriodUrl' => route('events.index', $this->periodParameters($period, $previousAnchor)),
+            'nextPeriodUrl' => route('events.index', $this->periodParameters($period, $nextAnchor)),
+            'periodSwitchUrls' => [
+                'semana' => route('events.index', $this->periodParameters('semana', $anchor)),
+                'mes' => route('events.index', $this->periodParameters('mes', $anchor)),
+                'anio' => route('events.index', $this->periodParameters('anio', $anchor)),
+            ],
+            'weekDays' => collect(range(0, 6))->map(fn (int $day) => $periodFrom->copy()->addDays($day)),
+            'yearMonths' => collect(range(1, 12))->map(fn (int $number) => $anchor->copy()->startOfYear()->setMonth($number)),
             'upcomingEvents' => DB::table('eventos_calendario')->where('estado', 'programado')->where('inicio_at', '>=', now()->startOfDay())->orderBy('inicio_at')->limit(8)->get(),
         ]);
     }
@@ -201,12 +231,30 @@ class CalendarEventController extends Controller
             return null;
         }
         try {
-            $date = Carbon::createFromFormat('Y-m-d', $value);
-
-            return $date->isSameMonth($month) ? $date->toDateString() : null;
+            return Carbon::createFromFormat('!Y-m-d', $value)->toDateString();
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function anchorDate(?string $value, Carbon $fallback): Carbon
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) {
+            try {
+                return Carbon::createFromFormat('!Y-m-d', $value)->startOfDay();
+            } catch (\Throwable) {
+                // Fall through to the displayed month.
+            }
+        }
+
+        return $fallback->copy()->startOfMonth();
+    }
+
+    private function periodParameters(string $period, Carbon $anchor): array
+    {
+        return $period === 'mes'
+            ? ['periodo' => 'mes', 'mes' => $anchor->format('Y-m'), 'fecha' => $anchor->toDateString()]
+            : ['periodo' => $period, 'mes' => $anchor->format('Y-m'), 'fecha' => $anchor->toDateString()];
     }
 
     private function eventsByDay(Collection $events, Carbon $from, Carbon $until): Collection
