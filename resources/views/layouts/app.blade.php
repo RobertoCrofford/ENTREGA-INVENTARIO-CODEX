@@ -82,7 +82,7 @@
                     @can('ver-bitacora')<a class="sidebar-link @if(request()->routeIs('audit-logs.*')) active @endif" href="{{ route('audit-logs.index') }}"><i class="bi bi-journal-text"></i>Bitácora</a>@endcan
                 </nav>
             @endcanany
-            <div class="sidebar-footer"><i class="bi bi-shield-check"></i>Los cambios publicados conservan trazabilidad.</div>
+            <div class="sidebar-footer"><i class="bi bi-shield-check"></i>Los cambios publicados conservan trazabilidad.<br><span class="app-credit">Desarrollo RCroffordT</span></div>
         </aside>
         <main class="app-content">
             @if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif

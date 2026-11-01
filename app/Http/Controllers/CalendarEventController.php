@@ -111,6 +111,9 @@ class CalendarEventController extends Controller
         } else {
             $end->endOfDay();
         }
+        if ($this->eventAlreadyExists(trim($data['titulo']), $this->blankToNull($data['lugar'] ?? null), $start, $allDay)) {
+            return back()->withInput()->withErrors(['titulo' => 'Ya existe un evento con el mismo nombre, fecha/hora y lugar. No se registró para evitar un duplicado.']);
+        }
         $event = DB::table('eventos_calendario')->insertGetId([
             'titulo' => trim($data['titulo']), 'descripcion' => $this->blankToNull($data['descripcion'] ?? null),
             'lugar' => $this->blankToNull($data['lugar'] ?? null), 'inicio_at' => $start,
@@ -142,12 +145,17 @@ class CalendarEventController extends Controller
             return back()->withErrors(['archivo' => $exception->getMessage()]);
         }
         $created = 0;
+        $duplicates = 0;
         $errors = [];
-        DB::transaction(function () use ($rows, $request, $file, &$created, &$errors): void {
+        DB::transaction(function () use ($rows, $request, $file, &$created, &$duplicates, &$errors): void {
             foreach ($rows as $row) {
                 $event = $this->eventFromRow($row);
                 if (! $event['valid']) {
                     $errors[] = "Fila {$row['_fila']}: {$event['error']}";
+                    continue;
+                }
+                if ($this->eventAlreadyExists($event['titulo'], $event['lugar'], $event['inicio_at'], $event['todo_el_dia'])) {
+                    $duplicates++;
                     continue;
                 }
                 DB::table('eventos_calendario')->insert([
@@ -159,12 +167,15 @@ class CalendarEventController extends Controller
                 $created++;
             }
         });
-        $audit->record($request->user(), 'importar', 'evento_calendario', null, after: ['eventos_creados' => $created, 'filas_con_error' => count($errors)], reason: $file->getClientOriginalName(), notify: false);
+        $audit->record($request->user(), 'importar', 'evento_calendario', null, after: ['eventos_creados' => $created, 'duplicados_omitidos' => $duplicates, 'filas_con_error' => count($errors)], reason: $file->getClientOriginalName(), notify: false);
         if ($created > 0) {
             $this->notifyUsers('Eventos importados', "Se registraron {$created} eventos desde el archivo {$file->getClientOriginalName()}.", route('events.index'));
         }
 
         $message = "Se registraron {$created} evento(s) desde el archivo.";
+        if ($duplicates > 0) {
+            $message .= " {$duplicates} ya existía(n) y no se duplicó(aron).";
+        }
         if ($errors) {
             return redirect()->route('events.index')->with('warning', $message.' Algunas filas no se importaron: '.implode(' ', array_slice($errors, 0, 3)));
         }
@@ -255,6 +266,24 @@ class CalendarEventController extends Controller
         return $period === 'mes'
             ? ['periodo' => 'mes', 'mes' => $anchor->format('Y-m'), 'fecha' => $anchor->toDateString()]
             : ['periodo' => $period, 'mes' => $anchor->format('Y-m'), 'fecha' => $anchor->toDateString()];
+    }
+
+    private function eventAlreadyExists(string $title, ?string $place, Carbon $startsAt, bool $allDay): bool
+    {
+        $normalizedTitle = $this->normalizeEventText($title);
+        $normalizedPlace = $this->normalizeEventText($place);
+
+        return DB::table('eventos_calendario')
+            ->where('inicio_at', $startsAt->copy()->format('Y-m-d H:i:s'))
+            ->where('todo_el_dia', $allDay)
+            ->whereRaw('LOWER(TRIM(titulo)) = ?', [$normalizedTitle])
+            ->whereRaw("LOWER(TRIM(COALESCE(lugar, ''))) = ?", [$normalizedPlace])
+            ->exists();
+    }
+
+    private function normalizeEventText(?string $value): string
+    {
+        return mb_strtolower((string) preg_replace('/\s+/u', ' ', trim((string) $value)));
     }
 
     private function eventsByDay(Collection $events, Carbon $from, Carbon $until): Collection
