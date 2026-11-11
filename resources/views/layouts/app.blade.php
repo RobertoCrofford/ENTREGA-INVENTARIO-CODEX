@@ -16,6 +16,9 @@
         <a class="brand-link" href="{{ route('dashboard') }}"><i class="bi bi-boxes"></i><span>Inventario Institucional</span></a>
         <span class="system-status"><span></span>Operativo</span>
         <div class="topbar-actions">
+            @can('escanear-inventario')
+                <a class="topbar-mobile-return" href="{{ route('mobile.index') }}" aria-label="Volver al escáner móvil" title="Volver al escáner móvil"><i class="bi bi-phone"></i><span>Volver al escáner</span></a>
+            @endcan
             <div class="dropdown theme-menu" data-theme-user="{{ auth()->id() }}">
                 <button class="topbar-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Cambiar apariencia" title="Cambiar apariencia"><i class="bi bi-palette"></i><span class="theme-menu-label">Color actual</span></button>
                 <div class="dropdown-menu dropdown-menu-end p-2 theme-dropdown">

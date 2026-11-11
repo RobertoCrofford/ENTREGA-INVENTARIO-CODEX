@@ -195,6 +195,7 @@ services:
     command: ["php", "artisan", "test"]
     volumes:
       - ./:/var/www/html
+      - /var/www/html/vendor
 
 networks:
   frontend:

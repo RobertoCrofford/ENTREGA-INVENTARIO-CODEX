@@ -1,0 +1,37 @@
+{
+  "id": "/mobile",
+  "name": "Inventario Institucional Móvil",
+  "short_name": "Inventario",
+  "description": "Escaneo móvil de activos para inventarios físicos institucionales.",
+  "lang": "es-CL",
+  "start_url": "/mobile",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "utilities"],
+  "background_color": "#eef3f9",
+  "theme_color": "#082a57",
+  "icons": [
+    {
+      "src": "/images/inventory-mobile-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Abrir escáner",
+      "short_name": "Escanear",
+      "url": "/mobile",
+      "icons": [{ "src": "/images/inventory-mobile-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Revisar una sala",
+      "short_name": "Revisar sala",
+      "url": "/mobile/rooms",
+      "icons": [{ "src": "/images/inventory-mobile-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

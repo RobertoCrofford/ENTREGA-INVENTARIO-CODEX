@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Inventario móvil</title>
+  <desc id="description">Lector de código de barras institucional azul y amarillo.</desc>
+  <rect width="512" height="512" rx="112" fill="#082a57"/>
+  <rect x="86" y="80" width="340" height="352" rx="54" fill="#ffffff"/>
+  <path d="M122 178v-42c0-11 9-20 20-20h42M390 178v-42c0-11-9-20-20-20h-42M122 334v42c0 11 9 20 20 20h42M390 334v42c0 11-9 20-20 20h-42" fill="none" stroke="#ffc928" stroke-width="24" stroke-linecap="round"/>
+  <g fill="#082a57">
+    <rect x="154" y="198" width="16" height="116" rx="4"/>
+    <rect x="184" y="198" width="10" height="116" rx="3"/>
+    <rect x="208" y="198" width="24" height="116" rx="4"/>
+    <rect x="246" y="198" width="12" height="116" rx="3"/>
+    <rect x="272" y="198" width="26" height="116" rx="4"/>
+    <rect x="312" y="198" width="10" height="116" rx="3"/>
+    <rect x="336" y="198" width="22" height="116" rx="4"/>
+  </g>
+</svg>
