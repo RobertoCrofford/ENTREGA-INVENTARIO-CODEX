@@ -58,6 +58,12 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
     Route::middleware('password.changed')->group(function () {
+        Route::get('/mobile', [ScanController::class, 'mobile'])->name('mobile.index');
+        Route::get('/mobile/lookup', [ScanController::class, 'mobileLookup'])->name('mobile.lookup');
+        Route::get('/mobile/rooms', [PhysicalInventoryController::class, 'mobileIndex'])->name('mobile.rooms');
+        Route::get('/mobile/inventories/{physicalInventory}', [PhysicalInventoryController::class, 'mobileShow'])->name('mobile.inventory.show');
+        Route::get('/mobile/inventories/{physicalInventory}/lookup', [PhysicalInventoryController::class, 'mobileLookup'])->name('mobile.inventory.lookup');
+        Route::get('/mobile/inventories/{physicalInventory}/state', [PhysicalInventoryController::class, 'mobileState'])->name('mobile.inventory.state');
         Route::get('/dashboard', function () {
             $isTechnicalSupport = auth()->user()->tieneRol(\App\Models\Role::APOYO_TECNICO);
             $assetStates = Schema::hasTable('estados_activo') ? DB::table('activos')
@@ -68,12 +74,14 @@ Route::middleware(['auth', 'active'])->group(function () {
             $physicalStates = Schema::hasTable('inventarios_fisicos') ? DB::table('inventarios_fisicos')
                 ->selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado') : collect();
             $months = collect(range(5, 0))->map(fn ($offset) => now()->subMonths($offset)->format('Y-m'));
+            $eventPeriod = DB::getDriverName() === 'sqlite' ? "strftime('%Y-%m', inicio_at)" : "DATE_FORMAT(inicio_at, '%Y-%m')";
+            $movementPeriod = DB::getDriverName() === 'sqlite' ? "strftime('%Y-%m', publicado_at)" : "DATE_FORMAT(publicado_at, '%Y-%m')";
             $eventRows = Schema::hasTable('eventos_calendario') ? DB::table('eventos_calendario')
                 ->where('estado', '!=', 'cancelado')->where('inicio_at', '>=', now()->subMonths(5)->startOfMonth())
-                ->selectRaw("DATE_FORMAT(inicio_at, '%Y-%m') as periodo, COUNT(*) as total")->groupBy('periodo')->pluck('total', 'periodo') : collect();
+                ->selectRaw("{$eventPeriod} as periodo, COUNT(*) as total")->groupBy('periodo')->pluck('total', 'periodo') : collect();
             $movementRows = Schema::hasTable('movimientos_inventario') ? DB::table('movimientos_inventario')
                 ->where('estado', 'publicado')->where('publicado_at', '>=', now()->subMonths(5)->startOfMonth())
-                ->selectRaw("DATE_FORMAT(publicado_at, '%Y-%m') as periodo, COUNT(*) as total")->groupBy('periodo')->pluck('total', 'periodo') : collect();
+                ->selectRaw("{$movementPeriod} as periodo, COUNT(*) as total")->groupBy('periodo')->pluck('total', 'periodo') : collect();
             $eventMonths = $months->map(fn ($month) => ['label' => \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M'), 'total' => (int) ($eventRows[$month] ?? 0)]);
             $movementMonths = $months->map(fn ($month) => ['label' => \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M'), 'total' => (int) ($movementRows[$month] ?? 0)]);
             $eventsThisWeek = Schema::hasTable('eventos_calendario') ? DB::table('eventos_calendario')->where('estado', '!=', 'cancelado')->whereBetween('inicio_at', [now()->startOfWeek(), now()->endOfWeek()])->count() : 0;

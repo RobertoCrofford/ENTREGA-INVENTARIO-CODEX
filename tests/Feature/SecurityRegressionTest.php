@@ -796,6 +796,124 @@ class SecurityRegressionTest extends TestCase
         $this->assertDatabaseHas('eventos_activo', ['activo_id' => $asset->id, 'motivo' => 'Reparación cancelada: El diagnóstico confirmó que no se requiere intervención.']);
     }
 
+    public function test_mobile_home_opens_global_scanner_for_technician_and_support(): void
+    {
+        foreach ([Role::TECNICO, Role::APOYO_TECNICO] as $roleCode) {
+            $user = $this->user($roleCode);
+            $this->actingAs($user)
+                ->get(route('mobile.index'))
+                ->assertOk()
+                ->assertSee('Consulta rápida')
+                ->assertSee('<h1>Escanear equipo</h1>', false)
+                ->assertSee('No se guardan fotografías ni videos')
+                ->assertSee('Revisar una sala');
+
+            $this->actingAs($user)
+                ->get(route('mobile.rooms'))
+                ->assertOk()
+                ->assertSee('<h1>Revisar sala</h1>', false)
+                ->assertSee('Seleccionar sala');
+
+            $this->actingAs($user)
+                ->get(route('dashboard'))
+                ->assertOk()
+                ->assertSee('Volver al escáner')
+                ->assertSee('href="'.route('mobile.index').'"', false);
+        }
+    }
+
+    public function test_mobile_global_scanner_returns_complete_asset_and_location(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+
+        $this->actingAs($technician)
+            ->getJson(route('mobile.lookup', ['codigo' => $asset->activo_fijo]))
+            ->assertOk()
+            ->assertJsonPath('status', 'found')
+            ->assertJsonPath('asset.activo_fijo', $asset->activo_fijo)
+            ->assertJsonPath('asset.numero_serie', $asset->numero_serie)
+            ->assertJsonPath('asset.ubicacion.nombre', $asset->location->nombre);
+    }
+
+    public function test_starting_an_inventory_from_mobile_returns_to_the_mobile_scanner(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+
+        $response = $this->actingAs($technician)->post(route('physical-inventories.store'), [
+            'ubicacion_id' => $asset->ubicacion_actual_id,
+            'modo' => 'mobile',
+        ]);
+
+        $inventoryId = DB::table('inventarios_fisicos')->where('ubicacion_id', $asset->ubicacion_actual_id)->value('id');
+        $response->assertRedirect(route('mobile.inventory.show', $inventoryId));
+        $this->actingAs($technician)
+            ->get(route('mobile.inventory.show', $inventoryId))
+            ->assertOk()
+            ->assertSee('Cámara lista para escanear')
+            ->assertSee('Últimos escaneos');
+    }
+
+    public function test_mobile_scan_requires_confirmation_lookup_and_records_actor_and_time(): void
+    {
+        $support = $this->user(Role::APOYO_TECNICO);
+        $asset = $this->asset($support);
+        $this->actingAs($support)->post(route('physical-inventories.store'), [
+            'ubicacion_id' => $asset->ubicacion_actual_id,
+            'modo' => 'mobile',
+        ])->assertRedirect();
+        $inventoryId = DB::table('inventarios_fisicos')->where('ubicacion_id', $asset->ubicacion_actual_id)->value('id');
+
+        $this->actingAs($support)
+            ->getJson(route('mobile.inventory.lookup', [$inventoryId, 'codigo' => $asset->activo_fijo]))
+            ->assertOk()
+            ->assertJsonPath('status', 'ready')
+            ->assertJsonPath('asset.activo_fijo', $asset->activo_fijo);
+
+        $this->actingAs($support)
+            ->postJson(route('physical-inventories.scan', $inventoryId), ['codigo' => $asset->activo_fijo])
+            ->assertCreated()
+            ->assertJsonPath('status', 'registered')
+            ->assertJsonPath('summary.encontrados', 1)
+            ->assertJsonPath('summary.pendientes', 0);
+
+        $this->assertDatabaseHas('inventarios_fisicos_detalle', [
+            'inventario_fisico_id' => $inventoryId,
+            'activo_id' => $asset->id,
+            'escaneado_por' => $support->id,
+        ]);
+        $this->assertNotNull(DB::table('inventarios_fisicos_detalle')->where('inventario_fisico_id', $inventoryId)->value('escaneado_at'));
+
+        $this->actingAs($support)
+            ->getJson(route('mobile.inventory.lookup', [$inventoryId, 'codigo' => $asset->activo_fijo]))
+            ->assertStatus(409)
+            ->assertJsonPath('status', 'duplicate');
+    }
+
+    public function test_mobile_scan_can_be_removed_immediately_and_manifest_starts_at_scanner(): void
+    {
+        $technician = $this->user(Role::TECNICO);
+        $asset = $this->asset($technician);
+        $this->actingAs($technician)->post(route('physical-inventories.store'), [
+            'ubicacion_id' => $asset->ubicacion_actual_id,
+            'modo' => 'mobile',
+        ]);
+        $inventoryId = DB::table('inventarios_fisicos')->where('ubicacion_id', $asset->ubicacion_actual_id)->value('id');
+        $this->actingAs($technician)->postJson(route('physical-inventories.scan', $inventoryId), ['codigo' => $asset->activo_fijo])->assertCreated();
+
+        $this->actingAs($technician)
+            ->deleteJson(route('physical-inventories.scans.destroy', [$inventoryId, $asset->id]))
+            ->assertOk()
+            ->assertJsonPath('summary.encontrados', 0)
+            ->assertJsonPath('summary.pendientes', 1);
+
+        $manifest = json_decode(file_get_contents(public_path('manifest.webmanifest')), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('/mobile', $manifest['start_url']);
+        $this->assertSame('standalone', $manifest['display']);
+        $this->assertSame('/mobile/rooms', $manifest['shortcuts'][1]['url']);
+    }
+
     private function user(string $roleCode): User
     {
         $role = Role::query()->where('codigo', $roleCode)->firstOrFail();

@@ -37,6 +37,12 @@ backup_once() {
     write_status "ok" "$target"
 }
 
+backup_until_success() {
+    until backup_once; do
+        sleep 60
+    done
+}
+
 health_check() {
     [ -r "$status_file" ] || exit 1
     # shellcheck disable=SC1090
@@ -59,17 +65,17 @@ if [ "${1:-}" = "--health" ]; then
     exit 0
 fi
 
-backup_once || true
+backup_until_success
 
 while true; do
     elapsed=0
     while [ "$elapsed" -lt 86400 ]; do
         if [ -f /backup-requests/manual-backup-request ]; then
             rm -f /backup-requests/manual-backup-request
-            backup_once || true
+            backup_until_success
         fi
         sleep 60
         elapsed=$((elapsed + 60))
     done
-    backup_once || true
+    backup_until_success
 done
