@@ -5,6 +5,7 @@ x-laravel-environment: &laravel-environment
   ADMIN_RECOVERY_CODE: "${ADMIN_RECOVERY_CODE:-}"
   APP_DEBUG: "${APP_DEBUG:-false}"
   APP_URL: "${APP_URL:?Configura APP_URL en las variables de Portainer}"
+  TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
   APP_TIMEZONE: "${APP_TIMEZONE:-America/Santiago}"
   TZ: "${TZ:-America/Santiago}"
   APP_LOCALE: "${APP_LOCALE:-es}"
