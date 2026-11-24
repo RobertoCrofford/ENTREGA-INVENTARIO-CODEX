@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Solo aceptar el protocolo reenviado desde los proxies configurados.
+        // Host, puerto e IP del cliente no se toman de cabeceras reenviadas.
+        $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_PROTO);
+
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'password.changed' => EnsurePasswordHasChanged::class,
